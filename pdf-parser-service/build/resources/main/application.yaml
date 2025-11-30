@@ -1,0 +1,30 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    url: jdbc:postgresql://localhost:5433/smartbachat
+
+    username: yugabyte
+    password:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+gcp:
+  project-id: smart-bachat-479203
+  storage:
+    bucket-name: smart-bachat-dev-1
+  pubsub:
+    topic: pdf-upload-topic
+    subscription: pdf-parser-worker-sub
+app:
+  presign-url-ttl-minutes: 30
+  max-batch-size: 500
+logging:
+  level:
+    root: INFO
+    com.smartbachat: DEBUG

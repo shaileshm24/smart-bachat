@@ -1,0 +1,52 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.2'
+    id 'io.spring.dependency-management' version '1.1.5'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    // Spring basics
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // PDF parsing
+    implementation 'org.apache.pdfbox:pdfbox:3.0.2'
+
+    // Yugabyte / Postgres driver
+    implementation 'org.postgresql:postgresql:42.7.2'
+
+    // Google Cloud (use BOM)
+    implementation platform('com.google.cloud:libraries-bom:26.40.0')
+    implementation 'com.google.cloud:google-cloud-storage'
+    implementation 'com.google.cloud:google-cloud-pubsub'
+
+    // Util libs
+    implementation 'com.google.guava:guava:33.5.0-jre'
+
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.12'
+
+    // Jackson
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+    implementation 'jakarta.validation:jakarta.validation-api'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
