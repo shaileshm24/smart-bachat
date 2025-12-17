@@ -27,6 +27,11 @@ public class TransactionEntity {
     @Column(name = "amount")
     private Long amount; // paisa
 
+	    // Explicit direction of money movement for this transaction.
+	    // Values typically: "DEBIT" (money out) or "CREDIT" (money in).
+	    @Column(name = "direction")
+	    private String direction;
+
     @Column(name = "currency")
     private String currency;
 
@@ -64,6 +69,9 @@ public class TransactionEntity {
     public void setTxnDate(LocalDate txnDate) { this.txnDate = txnDate; }
     public Long getAmount() { return amount; }
     public void setAmount(Long amount) { this.amount = amount; }
+
+	    public String getDirection() { return direction; }
+	    public void setDirection(String direction) { this.direction = direction; }
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
     public String getTxnType() { return txnType; }

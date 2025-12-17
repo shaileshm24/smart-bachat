@@ -1,7 +1,7 @@
 package com.ametsa.smartbachat.service;
 
-
 import com.ametsa.smartbachat.util.GenericPdfParser;
+import com.ametsa.smartbachat.util.HdfcPdfParser;
 import com.ametsa.smartbachat.util.PdfParserStrategy;
 import org.springframework.stereotype.Component;
 
@@ -9,17 +9,18 @@ import org.springframework.stereotype.Component;
 public class ParserFactory {
 
     private final GenericPdfParser genericPdfParser;
+	    private final HdfcPdfParser hdfcPdfParser;
 
-    public ParserFactory(GenericPdfParser genericPdfParser) {
-        this.genericPdfParser = genericPdfParser;
-    }
+	    public ParserFactory(GenericPdfParser genericPdfParser, HdfcPdfParser hdfcPdfParser) {
+	        this.genericPdfParser = genericPdfParser;
+	        this.hdfcPdfParser = hdfcPdfParser;
+	    }
 
     public PdfParserStrategy getParser(String bank) {
         if (bank == null) return genericPdfParser;
         String b = bank.toLowerCase();
         if (b.contains("hdfc")) {
-            // return HDFC parser when implemented
-            return genericPdfParser;
+	            return hdfcPdfParser;
         } else if (b.contains("icici")) {
             return genericPdfParser;
         } else {
