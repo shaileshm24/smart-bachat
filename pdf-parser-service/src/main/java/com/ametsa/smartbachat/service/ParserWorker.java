@@ -35,13 +35,14 @@ public class ParserWorker {
     private final TransactionRepository transactionRepository;
     private final ParserFactory parserFactory;
 
-    private final HdfcPdfParser hdfcPdfParser;
-    public ParserWorker(Storage storage, StatementMetadataRepository metadataRepository, TransactionRepository transactionRepository, ParserFactory parserFactory, HdfcPdfParser hdfcPdfParser) {
+    public ParserWorker(Storage storage,
+                        StatementMetadataRepository metadataRepository,
+                        TransactionRepository transactionRepository,
+                        ParserFactory parserFactory) {
         this.storage = storage;
         this.metadataRepository = metadataRepository;
         this.transactionRepository = transactionRepository;
         this.parserFactory = parserFactory;
-        this.hdfcPdfParser = hdfcPdfParser;
     }
 
     /**
@@ -80,24 +81,24 @@ public class ParserWorker {
                 return;
             }
 
-	            String firstPages = PdfUtil.extractTextFromPages(doc, 1, Math.min(3, doc.getNumberOfPages()));
-	            String bank = BankDetectorUtil.detectBank(firstPages);
-	            PdfParserStrategy parser = parserFactory.getParser(bank);
+            String firstPages = PdfUtil.extractTextFromPages(doc, 1, Math.min(3, doc.getNumberOfPages()));
+            String bank = BankDetectorUtil.detectBank(firstPages);
+            PdfParserStrategy parser = parserFactory.getParser(bank);
 
             List<TransactionEntity> buffer = new ArrayList<>();
             int total = doc.getNumberOfPages();
             meta.setUpdatedAt(Instant.now());
             metadataRepository.save(meta);
 
-            if (parser instanceof HdfcPdfParser) {
-                // TEXT-BASED HDFC PARSING WITH OPENING BALANCE
-                Long openingBalancePaisa = hdfcPdfParser.extractOpeningBalance(
-                        PdfUtil.extractTextFromPages(doc, total - 1, total));
-                log.info("[GCS job] openingBalancePaisa for HDFC: {}", openingBalancePaisa);
+            Long openingBalancePaisa = null;
+            String documentText = PdfUtil.extractTextFromPages(doc, 1, total);
+            if (parser.extractOpeningBalance(documentText) != null) {
+                openingBalancePaisa = parser.extractOpeningBalance(documentText);
+                log.info("[GCS job] openingBalancePaisa for bank {}: {}", bank, openingBalancePaisa);
+            }
 
-                // Parse the *entire* document text once, so rows split across pages are joined correctly
-                String fullText = PdfUtil.extractTextFromPages(doc, 1, total);
-                List<TransactionEntity> txns = hdfcPdfParser.parse(fullText, openingBalancePaisa);
+            if (parser.requiresFullDocumentText()) {
+                List<TransactionEntity> txns = parser.parse(documentText, openingBalancePaisa);
                 for (TransactionEntity t : txns) {
                     t.setStatementId(jobId);
                     t.setProfileId(meta.getProfileId());
@@ -110,10 +111,9 @@ public class ParserWorker {
                     }
                 }
             } else {
-                // Non‑HDFC: keep existing simple per‑page parser
                 for (int i = 0; i < total; i++) {
                     String pageText = PdfUtil.extractTextFromPages(doc, i + 1, i + 1);
-                    List<TransactionEntity> txns = parser.parse(pageText, null);
+                    List<TransactionEntity> txns = parser.parse(pageText, openingBalancePaisa);
                     for (TransactionEntity t : txns) {
                         t.setStatementId(jobId);
                         t.setProfileId(meta.getProfileId());
@@ -191,14 +191,12 @@ public class ParserWorker {
             List<TransactionEntity> buffer = new ArrayList<>();
             int total = doc.getNumberOfPages();
 
-            if (parser instanceof HdfcPdfParser) {
-                // TEXT-BASED HDFC PARSING WITH OPENING BALANCE
-                Long openingBalancePaisa = hdfcPdfParser.extractOpeningBalance(
-                        PdfUtil.extractTextFromPages(doc, total - 1, total));
-                log.info("openingBalancePaisa in parser worker file {}", openingBalancePaisa);
+            String documentText = PdfUtil.extractTextFromPages(doc, 1, total);
+            Long openingBalancePaisa = parser.extractOpeningBalance(documentText);
+            log.info("[Local job] openingBalancePaisa for bank {}: {}", bank, openingBalancePaisa);
 
-                String fullText = PdfUtil.extractTextFromPages(doc, 1, total);
-                List<TransactionEntity> txns = hdfcPdfParser.parse(fullText, openingBalancePaisa);
+            if (parser.requiresFullDocumentText()) {
+                List<TransactionEntity> txns = parser.parse(documentText, openingBalancePaisa);
                 for (TransactionEntity t : txns) {
                     t.setStatementId(jobId);
                     t.setProfileId(profileId);
@@ -211,10 +209,10 @@ public class ParserWorker {
                     }
                 }
             } else {
-                // Fallback for non-HDFC: simple text-based per-page parsing
+                // Fallback for parsers that operate on a page-by-page basis
                 for (int i = 0; i < total; i++) {
                     String pageText = PdfUtil.extractTextFromPages(doc, i + 1, i + 1);
-                    List<TransactionEntity> txns = parser.parse(pageText, null);
+                    List<TransactionEntity> txns = parser.parse(pageText, openingBalancePaisa);
                     for (TransactionEntity t : txns) {
                         t.setStatementId(jobId);
                         t.setProfileId(profileId);

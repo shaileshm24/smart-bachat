@@ -38,6 +38,26 @@ public class HdfcPdfParser implements PdfParserStrategy {
             Pattern.compile("(?i)(opening\\s+bal(?:ance)?|balance\\s+b/f)[^0-9]*([0-9,]+\\.[0-9]{2})");
 
     @Override
+    public String getBankCode() {
+        return "HDFC";
+    }
+
+    @Override
+    public boolean requiresFullDocumentText() {
+        return true;
+    }
+
+    @Override
+    public Long extractOpeningBalance(String documentText) {
+        Matcher m = OPENING_BAL_PATTERN.matcher(documentText);
+        if (m.find()) {
+            long bal = parseAmountToPaisa(m.group(2));
+            return bal;
+        }
+        return null;
+    }
+
+    @Override
     public List<TransactionEntity> parse(String pageText, Long openingBalancePaisa) {
 
         if (pageText == null || pageText.isBlank()) return List.of();
@@ -47,7 +67,35 @@ public class HdfcPdfParser implements PdfParserStrategy {
         String[] lines = pageText.split("\\r?\\n");
         String currentRow = null;
 
+        // If we don't have an opening balance, just return rows parsed from
+        // narration (direction inferred purely from text).
+        if (openingBalancePaisa == null || openingBalancePaisa <= 0) {
+            for (String raw : lines) {
+                String line = raw.trim();
+                if (line.isEmpty()) continue;
+                if (line.startsWith("Date ") || line.startsWith("DATE ")) continue;
 
+                Matcher m = DATE_AT_START.matcher(line);
+                if (m.find()) {
+                    if (currentRow != null) {
+                        ParsedRow r = parseRowInternal(currentRow);
+                        if (r != null) rows.add(r);
+                    }
+                    currentRow = line;
+                } else if (currentRow != null) {
+                    currentRow += " " + line;
+                }
+            }
+            if (currentRow != null) {
+                ParsedRow r = parseRowInternal(currentRow);
+                if (r != null) rows.add(r);
+            }
+            // No balance-delta step; narration-only inference will be used.
+            return rows.stream().map(r -> r.entity).toList();
+        }
+
+        // With a valid opening balance, use balance-delta to derive
+        // DEBIT/CREDIT and withdrawal/deposit amounts.
         if (openingBalancePaisa != null && openingBalancePaisa > 0) {
             log.info("Opening balance in parser {}", openingBalancePaisa);
             for (String raw : lines) {
@@ -73,10 +121,7 @@ public class HdfcPdfParser implements PdfParserStrategy {
             }
 
             // 🔥 STEP 2: Apply balance-delta logic
-            long prevBalance =
-                    openingBalancePaisa != null
-                            ? openingBalancePaisa
-                            : rows.isEmpty() ? 0 : rows.get(0).balancePaisa;
+            long prevBalance = openingBalancePaisa;
 
             for (ParsedRow curr : rows) {
 
@@ -100,19 +145,6 @@ public class HdfcPdfParser implements PdfParserStrategy {
 
         }
         return rows.stream().map(r -> r.entity).toList();
-    }
-
-	    // ------------------------------------------------------------------
-	    // OPENING BALANCE EXTRACTION
-	    // ------------------------------------------------------------------
-
-    public Long extractOpeningBalance(String text) {
-        Matcher m = OPENING_BAL_PATTERN.matcher(text);
-        if (m.find()) {
-            long bal = parseAmountToPaisa(m.group(2));
-            return bal;
-        }
-        return null;
     }
 
 	    // ------------------------------------------------------------------
@@ -175,6 +207,10 @@ public class HdfcPdfParser implements PdfParserStrategy {
         e.setCurrency("INR");
         e.setDescription(description);
         e.setRawText(row.trim());
+
+        // Store the absolute transaction amount on the entity so that
+        // downstream logic (DTO mapping, summaries) has direct access to it.
+        e.setAmount(txnAmountPaisa);
 
         String txnType = inferTxnType(description.toLowerCase());
         if (txnType != null) e.setTxnType(txnType);
