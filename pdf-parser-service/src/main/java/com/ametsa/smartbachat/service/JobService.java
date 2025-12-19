@@ -30,16 +30,17 @@ public class JobService {
 
     public StartResponseDto startJob(String uploadId, String objectName, UUID profileId, String filename) throws Exception {
         UUID jobId = UUID.randomUUID();
-        StatementMetadata meta = new StatementMetadata();
-        meta.setId(jobId);
-        meta.setUploadId(uploadId);
-        meta.setObjectPath(objectName);
-        meta.setProfileId(profileId);
-        meta.setFilename(filename);
-        meta.setStatus("PENDING");
-        meta.setCreatedAt(Instant.now());
-        meta.setUpdatedAt(Instant.now());
-        metadataRepository.save(meta);
+            StatementMetadata meta = new StatementMetadata();
+            meta.setId(jobId);
+            meta.setUploadId(uploadId);
+            meta.setObjectPath(objectName);
+            meta.setProfileId(profileId);
+            meta.setFilename(filename);
+            meta.setBucketName(System.getenv().getOrDefault("GCS_BUCKET", "smart-bachat-dev-1"));
+            meta.setStatus("PENDING");
+            meta.setCreatedAt(Instant.now());
+            meta.setUpdatedAt(Instant.now());
+            metadataRepository.save(meta);
 
         // publish to pubsub
         JobMessage msg = new JobMessage(jobId.toString(), objectName, profileId.toString());

@@ -1,7 +1,7 @@
 package com.ametsa.smartbachat.service;
 
 import com.ametsa.smartbachat.util.GenericPdfParser;
-import com.ametsa.smartbachat.util.HdfcPdfParser;
+import com.ametsa.smartbachat.parser.HdfcPdfParser;
 import com.ametsa.smartbachat.util.PdfParserStrategy;
 import org.springframework.stereotype.Component;
 

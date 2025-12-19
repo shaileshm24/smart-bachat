@@ -62,6 +62,6 @@ public class StatementMetadata {
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
-    public String getBucketName() { return errorMessage; }
-    public void setBucketName(String errorMessage) { this.errorMessage = errorMessage; }
+	    public String getBucketName() { return bucketName; }
+	    public void setBucketName(String bucketName) { this.bucketName = bucketName; }
 }

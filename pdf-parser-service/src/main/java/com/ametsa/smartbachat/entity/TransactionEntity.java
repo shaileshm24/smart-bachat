@@ -44,6 +44,12 @@ public class TransactionEntity {
     @Column(name = "merchant")
     private String merchant;
 
+    @Column(name="withdrawal_amount")
+    private Long withdrawalAmount;
+
+    @Column(name="deposit_amount")
+    private Long depositAmount;
+
     @Column(name = "balance")
     private Long balance;
 
@@ -70,6 +76,11 @@ public class TransactionEntity {
     public Long getAmount() { return amount; }
     public void setAmount(Long amount) { this.amount = amount; }
 
+
+    public Long getWithdrawalAmount() { return withdrawalAmount; }
+    public void setWithdrawalAmount(Long withdrawalAmount) { this.withdrawalAmount = withdrawalAmount; }
+    public Long getDepositAmount() { return depositAmount; }
+    public void setDepositAmount(Long depositAmount) { this.depositAmount = depositAmount; }
 	    public String getDirection() { return direction; }
 	    public void setDirection(String direction) { this.direction = direction; }
     public String getCurrency() { return currency; }
