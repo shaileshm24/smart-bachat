@@ -24,7 +24,28 @@ gcp:
 app:
   presign-url-ttl-minutes: 30
   max-batch-size: 500
+
+# Setu Account Aggregator Configuration
+setu:
+  # Use sandbox URL for development, production URL for live
+  base-url: https://fiu-sandbox.setu.co
+  # Get these from Setu Dashboard (https://console.setu.co)
+  client-id: ${SETU_CLIENT_ID:your-client-id}
+  client-secret: ${SETU_CLIENT_SECRET:your-client-secret}
+  product-instance-id: ${SETU_PRODUCT_INSTANCE_ID:your-product-instance-id}
+  # Webhook secret for signature verification
+  webhook-secret: ${SETU_WEBHOOK_SECRET:}
+  # Where to redirect user after consent approval
+  redirect-url: ${SETU_REDIRECT_URL:http://localhost:3000/bank/callback}
+  # Consent validity in months
+  consent-duration-months: 12
+  # How many months of historical data to fetch
+  data-fetch-months: 12
+  # FI Types to request (DEPOSIT for bank accounts)
+  fi-types: DEPOSIT
+
 logging:
   level:
     root: INFO
     com.smartbachat: DEBUG
+    com.ametsa.smartbachat: DEBUG
