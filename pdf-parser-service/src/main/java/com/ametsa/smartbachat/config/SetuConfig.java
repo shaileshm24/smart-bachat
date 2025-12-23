@@ -22,6 +22,9 @@ public class SetuConfig {
     // FI Types to request (comma-separated)
     private String fiTypes = "DEPOSIT";
 
+    // VUA suffix for mobile number (e.g., "@setu-aa")
+    private String vuaSuffix = "@setu-aa";
+
     // Getters and Setters
     public String getBaseUrl() { return baseUrl; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
@@ -41,5 +44,7 @@ public class SetuConfig {
     public void setDataFetchMonths(int dataFetchMonths) { this.dataFetchMonths = dataFetchMonths; }
     public String getFiTypes() { return fiTypes; }
     public void setFiTypes(String fiTypes) { this.fiTypes = fiTypes; }
+    public String getVuaSuffix() { return vuaSuffix; }
+    public void setVuaSuffix(String vuaSuffix) { this.vuaSuffix = vuaSuffix; }
 }
 

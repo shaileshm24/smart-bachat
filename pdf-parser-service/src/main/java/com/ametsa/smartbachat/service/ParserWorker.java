@@ -144,15 +144,24 @@ public class ParserWorker {
     }
 
     /**
+     * Process a PDF file from local filesystem directly (without password).
+     * Delegates to the password-aware overload with null password.
+     */
+    public UUID processLocalFile(String filePath, UUID profileId, String filename) throws Exception {
+        return processLocalFile(filePath, profileId, filename, null);
+    }
+
+    /**
      * Process a PDF file from local filesystem directly.
      * Parses the PDF, extracts transactions, and stores them in the database.
      *
      * @param filePath Path to the local PDF file
      * @param profileId Profile ID for the transactions
      * @param filename Original filename
+     * @param password Optional password for encrypted PDFs (can be null)
      * @return UUID of the created statement/job
      */
-    public UUID processLocalFile(String filePath, UUID profileId, String filename) throws Exception {
+    public UUID processLocalFile(String filePath, UUID profileId, String filename, String password) throws Exception {
         UUID jobId = UUID.randomUUID();
 
         // Create metadata entry
@@ -176,12 +185,19 @@ public class ParserWorker {
 
             PDDocument doc;
             try {
-                doc = Loader.loadPDF(pdfFile);
+                // Try loading with password if provided, otherwise without
+                if (password != null && !password.isEmpty()) {
+                    doc = Loader.loadPDF(pdfFile, password);
+                    log.info("[Local job] PDF loaded with password for file: {}", filename);
+                } else {
+                    doc = Loader.loadPDF(pdfFile);
+                }
             } catch (org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException ipe) {
                 meta.setStatus("PASSWORD_REQUIRED");
+                meta.setErrorMessage("PDF is password protected. Please provide the correct password.");
                 meta.setUpdatedAt(Instant.now());
                 metadataRepository.save(meta);
-                throw new Exception("PDF is password protected");
+                throw new Exception("PDF is password protected or incorrect password provided");
             }
 
             // Detect bank from first few pages

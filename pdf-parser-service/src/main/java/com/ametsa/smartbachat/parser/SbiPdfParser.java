@@ -50,6 +50,19 @@ public class SbiPdfParser implements PdfParserStrategy {
     private static final Pattern BAL_AS_ON =
             Pattern.compile("(?i)balance\\s+as\\s+on\\s+\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}");
 
+    // Pattern for SBI format where amount comes before date:
+    // "22867.00 -19 DEC 2025 TRANSFER TO..."
+    private static final Pattern AMOUNT_BEFORE_DATE =
+            Pattern.compile(
+                    "^[0-9,]+\\.[0-9]{2}\\s+-?\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4}"
+            );
+
+    // Pattern for merged amount+date like "- 25000.0029 NOV 2025" where amount and date are merged
+    private static final Pattern MERGED_AMOUNT_DATE =
+            Pattern.compile(
+                    "^-\\s+[0-9,]+\\.[0-9]{2}\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4}"
+            );
+
     @Override
     public String getBankCode() {
         return "SBI";
@@ -64,16 +77,49 @@ public class SbiPdfParser implements PdfParserStrategy {
 
         // Detect whether this page has an explicit "Debit Credit Balance" header.
         boolean hasAmountHeader = false;
+        // Detect if this is the new SBI format where amount comes before date
+        boolean hasAmountBeforeDate = false;
+
+        // Track if we see header keywords (may be split across lines)
+        boolean hasDebit = false;
+        boolean hasCredit = false;
+        boolean hasBalance = false;
+
         for (String raw : lines) {
-            String lower = raw.trim().toLowerCase();
+            String line = raw.trim();
+            String lower = line.toLowerCase();
+
+            // Check for header keywords (may be on same or different lines)
+            if (lower.contains("debit")) hasDebit = true;
+            if (lower.contains("credit") && lower.contains("balance")) {
+                hasCredit = true;
+                hasBalance = true;
+            }
+            // Also check for the combined header pattern
             if (!lower.isEmpty() && lower.contains("debit") && lower.contains("credit") && lower.contains("balance")) {
                 hasAmountHeader = true;
-                break;
+            }
+
+            // Check for pattern like "22867.00 -19 DEC 2025" or "- 25000.0029 NOV 2025"
+            if (AMOUNT_BEFORE_DATE.matcher(line).find()) {
+                hasAmountBeforeDate = true;
+            }
+            if (MERGED_AMOUNT_DATE.matcher(line).find()) {
+                hasAmountBeforeDate = true;
             }
         }
 
+        // If we found all header keywords across lines, treat as having header
+        if (hasDebit && hasCredit && hasBalance) {
+            hasAmountHeader = true;
+        }
+
         List<ParsedRow> rows;
-        if (hasAmountHeader) {
+        if (hasAmountBeforeDate && hasAmountHeader) {
+            // New SBI format with amount before date
+            log.info("[SBI] Detected new format with amount before date");
+            rows = parseNewSbiFormat(lines);
+        } else if (hasAmountHeader) {
             rows = parseWithHeaderGrouping(lines);
         } else {
             rows = parseWithDateGrouping(lines);
@@ -184,6 +230,191 @@ public class SbiPdfParser implements PdfParserStrategy {
         // We intentionally do not flush a trailing row without amounts:
         // ledger rows should always end with at least txn amount + balance.
         return rows;
+    }
+
+    /**
+     * Parse the new SBI format where PDF text extraction produces lines like:
+     * "22867.00 -19 DEC 2025 TRANSFER TO 43636774280 Mr."
+     * "Shailesh Nivas Mal -"
+     * "26240.00"
+     *
+     * Or merged format like:
+     * "- 25000.0029 NOV 2025 TRANSFER FROM 4897738162095 -"
+     */
+    private List<ParsedRow> parseNewSbiFormat(String[] lines) {
+        List<ParsedRow> rows = new ArrayList<>();
+        boolean inTable = false;
+        boolean sawDebit = false;
+
+        List<String> currentTxnLines = new ArrayList<>();
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+            if (line.isEmpty()) continue;
+
+            String lower = line.toLowerCase();
+
+            // Skip header rows and metadata - handle split headers
+            if (!inTable) {
+                // Check for header line with credit/balance
+                if (lower.contains("credit") && lower.contains("balance")) {
+                    sawDebit = false; // reset, look for debit next
+                }
+                // Check for standalone "Debit" line or combined header
+                if (lower.equals("debit") || (lower.contains("debit") && lower.contains("credit"))) {
+                    inTable = true;
+                    log.debug("[SBI NewFormat] Entering table after line: {}", line);
+                }
+                continue;
+            }
+
+            // Skip repeated headers
+            if ((lower.contains("credit") && lower.contains("balance")) || lower.equals("debit")) {
+                continue;
+            }
+            if (lower.startsWith("date") && (lower.contains("details") || lower.contains("credit"))) {
+                continue;
+            }
+            if (lower.equals("no")) {
+                continue;
+            }
+
+            // Skip footer
+            if (lower.contains("computer generated") || lower.contains("does not require")) {
+                break;
+            }
+
+            // Check if this line starts a new transaction
+            // Pattern: "amount -date" or "- amount+date" or just a balance line
+            boolean isNewTxnStart = false;
+
+            // Check for "22867.00 -19 DEC 2025" pattern
+            if (line.matches("^[0-9,]+\\.[0-9]{2}\\s+-?\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4}.*")) {
+                isNewTxnStart = true;
+            }
+            // Check for "- 25000.0029 NOV 2025" pattern (merged amount+date)
+            else if (line.matches("^-\\s+[0-9,]+\\.[0-9]{2}\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4}.*")) {
+                isNewTxnStart = true;
+            }
+
+            if (isNewTxnStart && !currentTxnLines.isEmpty()) {
+                // Process previous transaction
+                ParsedRow r = parseNewFormatTransaction(currentTxnLines);
+                if (r != null) rows.add(r);
+                currentTxnLines.clear();
+            }
+
+            currentTxnLines.add(line);
+        }
+
+        // Process last transaction
+        if (!currentTxnLines.isEmpty()) {
+            ParsedRow r = parseNewFormatTransaction(currentTxnLines);
+            if (r != null) rows.add(r);
+        }
+
+        return rows;
+    }
+
+    /**
+     * Parse a single transaction from the new SBI format.
+     * Lines example:
+     * ["22867.00 -19 DEC 2025 TRANSFER TO 43636774280 Mr.", "Shailesh Nivas Mal -", "26240.00"]
+     */
+    private ParsedRow parseNewFormatTransaction(List<String> txnLines) {
+        if (txnLines.isEmpty()) return null;
+
+        String combined = String.join(" ", txnLines);
+        log.debug("[SBI NewFormat] Processing: {}", combined);
+
+        // Extract all amounts from the combined text
+        List<AmountMatch> amounts = new ArrayList<>();
+        Matcher numMatcher = AMOUNT_PATTERN.matcher(combined);
+        while (numMatcher.find()) {
+            amounts.add(new AmountMatch(numMatcher.group(1), numMatcher.start()));
+        }
+
+        if (amounts.isEmpty()) return null;
+
+        // Extract date - look for "DD MMM YYYY" pattern
+        Pattern datePattern = Pattern.compile("(\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4})");
+        Matcher dateMatcher = datePattern.matcher(combined);
+        String dateStr = null;
+        if (dateMatcher.find()) {
+            dateStr = dateMatcher.group(1);
+        }
+
+        if (dateStr == null) return null;
+
+        // Determine transaction amount and balance
+        // In this format: first amount is debit/credit, last amount is balance
+        long txnAmountPaisa = 0L;
+        long balancePaisa = 0L;
+        String direction = null;
+
+        if (amounts.size() >= 2) {
+            // Last amount is balance
+            balancePaisa = parseAmountToPaisa(amounts.get(amounts.size() - 1).value);
+            // First amount is transaction amount
+            txnAmountPaisa = parseAmountToPaisa(amounts.get(0).value);
+        } else if (amounts.size() == 1) {
+            // Only one amount - could be just balance or merged
+            txnAmountPaisa = parseAmountToPaisa(amounts.get(0).value);
+        }
+
+        // Determine direction from description
+        String lowerCombined = combined.toLowerCase();
+        if (lowerCombined.contains("transfer to") || lowerCombined.contains("neft") ||
+            lowerCombined.contains("withdrawal") || lowerCombined.contains("atm")) {
+            direction = "DEBIT";
+        } else if (lowerCombined.contains("transfer from") || lowerCombined.contains("credit") ||
+                   lowerCombined.contains("deposit") || lowerCombined.contains("upi/cr")) {
+            direction = "CREDIT";
+        }
+
+        // Extract description - text between date and amounts
+        String description = extractDescriptionFromNewFormat(combined, dateStr);
+
+        TransactionEntity e = new TransactionEntity();
+        try {
+            e.setTxnDate(LocalDate.parse(normalizeDate(dateStr)));
+        } catch (Exception ignored) {
+            log.warn("[SBI NewFormat] Could not parse date: {}", dateStr);
+        }
+
+        e.setAmount(txnAmountPaisa);
+        e.setBalance(balancePaisa);
+        e.setDirection(direction);
+        e.setCurrency("INR");
+        e.setDescription(description);
+        e.setRawText(combined);
+
+        String txnType = inferTxnType(lowerCombined);
+        if (txnType != null) e.setTxnType(txnType);
+
+        return new ParsedRow(e, txnAmountPaisa, balancePaisa, lowerCombined);
+    }
+
+    private String extractDescriptionFromNewFormat(String combined, String dateStr) {
+        // Find the date position and extract text after it
+        int datePos = combined.indexOf(dateStr);
+        if (datePos < 0) return combined;
+
+        String afterDate = combined.substring(datePos + dateStr.length()).trim();
+
+        // Remove trailing amounts
+        Matcher amountMatcher = AMOUNT_PATTERN.matcher(afterDate);
+        int lastDescEnd = afterDate.length();
+        while (amountMatcher.find()) {
+            if (amountMatcher.start() < lastDescEnd) {
+                lastDescEnd = amountMatcher.start();
+            }
+        }
+
+        String desc = afterDate.substring(0, lastDescEnd).trim();
+        // Clean up trailing dashes and spaces
+        desc = desc.replaceAll("\\s*-\\s*$", "").trim();
+        return desc.isEmpty() ? afterDate : desc;
     }
 
     private ParsedRow parseRowInternal(String row) {
@@ -437,22 +668,50 @@ public class SbiPdfParser implements PdfParserStrategy {
             return null;
         }
 
+        // Pattern 1: "Balance as on 19 DEC 2025 INR 26240.00" (with INR prefix, same line)
+        Pattern BALANCE_AS_ON_WITH_INR = Pattern.compile(
+                "(?i)balance\\s+as\\s+on\\s+" +
+                        "(?:\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{1,2}\\s+[a-z]{3,9}\\s+\\d{4})" +
+                        "\\s+INR\\s*([0-9,]+\\.[0-9]{2})"
+        );
+
+        Matcher m = BALANCE_AS_ON_WITH_INR.matcher(documentText);
+        if (m.find()) {
+            String balance = m.group(1);
+            long bal = parseAmountToPaisa(balance);
+            log.info("[SBI] Extracted opening balance from 'Balance as on ... INR ...': {}", bal);
+            return bal;
+        }
+
+        // Pattern 2: "Balance as on DD/MM/YYYY 5,274.00" (without INR prefix, same line)
         Pattern BALANCE_AS_ON = Pattern.compile(
                 "(?i)balance\\s+as\\s+on\\s+" +
                         "(?:\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{1,2}\\s+[a-z]{3,9}\\s+\\d{4})" +
                         "[^0-9]*([0-9,]+\\.[0-9]{2})"
         );
 
-        Matcher m = BALANCE_AS_ON.matcher(documentText);
+        m = BALANCE_AS_ON.matcher(documentText);
         if (m.find()) {
-            String balance = m.group(1); // 5,274.00
-//        }
-//        Matcher m = BAL_AS_ON.matcher(documentText);
-//        if (m.find()) {
-            // BAL_AS_ON has a single capturing group for the numeric amount
+            String balance = m.group(1);
             long bal = parseAmountToPaisa(balance);
             log.info("[SBI] Extracted opening balance from 'Balance as on ...': {}", bal);
             return bal;
+        }
+
+        // Pattern 3: Handle PDF extraction where text is split across lines
+        // Look for "DD MMM YYYY INR amount" pattern near "Balance as on"
+        // This handles cases where PDF text extraction doesn't preserve layout
+        if (documentText.toLowerCase().contains("balance as on")) {
+            Pattern DATE_INR_AMOUNT = Pattern.compile(
+                    "(\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4})\\s+INR\\s*([0-9,]+\\.[0-9]{2})"
+            );
+            m = DATE_INR_AMOUNT.matcher(documentText);
+            if (m.find()) {
+                String balance = m.group(2);
+                long bal = parseAmountToPaisa(balance);
+                log.info("[SBI] Extracted opening balance from separate 'DD MMM YYYY INR amount' line: {}", bal);
+                return bal;
+            }
         }
 
         log.info("[SBI] Could not find 'Balance as on ...' opening balance in document text");

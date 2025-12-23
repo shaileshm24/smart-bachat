@@ -61,6 +61,22 @@ public class PdfUploadController {
     public ResponseEntity<StartResponseDto> parseLocalFile(
             @RequestParam("file") MultipartFile file
     ) throws Exception {
+        return parseLocalFileWithPassword(file, null);
+    }
+
+    /**
+     * Parse a PDF file with optional password support.
+     * Accepts a file and optional password for password-protected PDFs.
+     *
+     * @param file The PDF file to parse
+     * @param password Optional password for encrypted PDFs
+     * @return StartResponseDto with the job ID
+     */
+    @PostMapping(value = "/parse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<StartResponseDto> parseLocalFileWithPassword(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "password", required = false) String password
+    ) throws Exception {
         // Validate the file
         if (file.isEmpty()) {
             throw new IOException("File is empty");
@@ -81,7 +97,7 @@ public class PdfUploadController {
             file.transferTo(tempFile);
 
             // Parse the PDF directly and store transactions to DB
-            UUID jobId = parserWorker.processLocalFile(tempFilePath, profileId, filename);
+            UUID jobId = parserWorker.processLocalFile(tempFilePath, profileId, filename, password);
 
             return ResponseEntity.ok(new StartResponseDto(jobId));
         } finally {

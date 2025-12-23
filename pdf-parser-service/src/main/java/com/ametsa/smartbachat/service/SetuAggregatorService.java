@@ -1,6 +1,7 @@
 package com.ametsa.smartbachat.service;
 
 import com.ametsa.smartbachat.config.SetuConfig;
+import com.ametsa.smartbachat.exception.SetuApiException;
 import com.ametsa.smartbachat.dto.setu.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +33,10 @@ public class SetuAggregatorService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public SetuAggregatorService(SetuConfig setuConfig, ObjectMapper objectMapper) {
+    public SetuAggregatorService(SetuConfig setuConfig, ObjectMapper objectMapper, HttpClient httpClient) {
         this.setuConfig = setuConfig;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
-                .build();
+        this.httpClient = httpClient;
     }
 
     /**
@@ -46,60 +46,34 @@ public class SetuAggregatorService {
      * @param dataToDate End date for data range
      * @return Consent response with redirect URL
      */
-    public SetuConsentResponse createConsent(String mobileNumber, LocalDate dataFromDate, LocalDate dataToDate) 
-            throws Exception {
+    public SetuConsentResponse createConsent(String mobileNumber, LocalDate dataFromDate, LocalDate dataToDate) {
         
         SetuConsentRequest request = buildConsentRequest(mobileNumber, dataFromDate, dataToDate);
-        String requestBody = objectMapper.writeValueAsString(request);
-
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(setuConfig.getBaseUrl() + "/v2/consents"))
-                .header("Content-Type", "application/json")
-                .header("x-client-id", setuConfig.getClientId())
-                .header("x-client-secret", setuConfig.getClientSecret())
-                .header("x-product-instance-id", setuConfig.getProductInstanceId())
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
 
         log.info("Creating consent for mobile: {}****", mobileNumber.substring(0, 4));
-        
-        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            return objectMapper.readValue(response.body(), SetuConsentResponse.class);
-        } else {
-            log.error("Consent creation failed: {} - {}", response.statusCode(), response.body());
-            throw new RuntimeException("Failed to create consent: " + response.body());
-        }
+        HttpRequest httpRequest = newHttpRequestBuilder("/v2/consents")
+                .header("Content-Type", "application/json")
+                .POST(buildRequestBody(request))
+                .build();
+
+        return sendRequest(httpRequest, SetuConsentResponse.class, "create consent");
     }
 
     /**
      * Get consent status by consent ID.
      */
-    public SetuConsentResponse getConsentStatus(String consentId) throws Exception {
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(setuConfig.getBaseUrl() + "/v2/consents/" + consentId))
-                .header("x-client-id", setuConfig.getClientId())
-                .header("x-client-secret", setuConfig.getClientSecret())
-                .header("x-product-instance-id", setuConfig.getProductInstanceId())
+    public SetuConsentResponse getConsentStatus(String consentId) {
+        HttpRequest httpRequest = newHttpRequestBuilder("/v2/consents/" + consentId)
                 .GET()
                 .build();
 
-        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            return objectMapper.readValue(response.body(), SetuConsentResponse.class);
-        } else {
-            log.error("Get consent status failed: {} - {}", response.statusCode(), response.body());
-            throw new RuntimeException("Failed to get consent status: " + response.body());
-        }
+        return sendRequest(httpRequest, SetuConsentResponse.class, "get consent status");
     }
 
     /**
      * Create a data session to fetch financial data.
      */
-    public SetuDataSessionResponse createDataSession(String consentId, LocalDate fromDate, LocalDate toDate) 
-            throws Exception {
+    public SetuDataSessionResponse createDataSession(String consentId, LocalDate fromDate, LocalDate toDate) {
         
         SetuDataSessionRequest request = new SetuDataSessionRequest();
         request.setConsentId(consentId);
@@ -107,54 +81,28 @@ public class SetuAggregatorService {
         
         SetuDataSessionRequest.DataRange dataRange = new SetuDataSessionRequest.DataRange();
         dataRange.setFrom(fromDate.atStartOfDay().format(ISO_DATE_FORMAT));
-        dataRange.setTo(toDate.atTime(23, 59, 59).format(ISO_DATE_FORMAT));
+        dataRange.setTo(toDate.atTime(LocalTime.MAX).format(ISO_DATE_FORMAT));
         request.setDataRange(dataRange);
 
-        String requestBody = objectMapper.writeValueAsString(request);
-
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(setuConfig.getBaseUrl() + "/v2/sessions"))
+        log.info("Creating data session for consent: {}", consentId);
+        HttpRequest httpRequest = newHttpRequestBuilder("/v2/sessions")
                 .header("Content-Type", "application/json")
-                .header("x-client-id", setuConfig.getClientId())
-                .header("x-client-secret", setuConfig.getClientSecret())
-                .header("x-product-instance-id", setuConfig.getProductInstanceId())
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .POST(buildRequestBody(request))
                 .build();
 
-        log.info("Creating data session for consent: {}", consentId);
-        
-        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            return objectMapper.readValue(response.body(), SetuDataSessionResponse.class);
-        } else {
-            log.error("Data session creation failed: {} - {}", response.statusCode(), response.body());
-            throw new RuntimeException("Failed to create data session: " + response.body());
-        }
+        return sendRequest(httpRequest, SetuDataSessionResponse.class, "create data session");
     }
 
     /**
      * Fetch financial data from a completed session.
      */
-    public SetuFIDataResponse fetchSessionData(String sessionId) throws Exception {
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(setuConfig.getBaseUrl() + "/v2/sessions/" + sessionId))
-                .header("x-client-id", setuConfig.getClientId())
-                .header("x-client-secret", setuConfig.getClientSecret())
-                .header("x-product-instance-id", setuConfig.getProductInstanceId())
+    public SetuFIDataResponse fetchSessionData(String sessionId) {
+        log.info("Fetching data for session: {}", sessionId);
+        HttpRequest httpRequest = newHttpRequestBuilder("/v2/sessions/" + sessionId)
                 .GET()
                 .build();
 
-        log.info("Fetching data for session: {}", sessionId);
-        
-        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            return objectMapper.readValue(response.body(), SetuFIDataResponse.class);
-        } else {
-            log.error("Fetch session data failed: {} - {}", response.statusCode(), response.body());
-            throw new RuntimeException("Failed to fetch session data: " + response.body());
-        }
+        return sendRequest(httpRequest, SetuFIDataResponse.class, "fetch session data");
     }
 
     /**
@@ -163,8 +111,8 @@ public class SetuAggregatorService {
     private SetuConsentRequest buildConsentRequest(String mobileNumber, LocalDate fromDate, LocalDate toDate) {
         SetuConsentRequest request = new SetuConsentRequest();
 
-        // Format VUA: mobile@setu-aa (or appropriate AA handle)
-        request.setVua(mobileNumber + "@setu-aa");
+        // Format VUA: mobile@setu-aa (or appropriate AA handle from config)
+        request.setVua(mobileNumber + setuConfig.getVuaSuffix());
 
         // Consent duration
         SetuConsentRequest.ConsentDuration duration = new SetuConsentRequest.ConsentDuration();
@@ -175,7 +123,7 @@ public class SetuAggregatorService {
         // Data range
         SetuConsentRequest.DataRange dataRange = new SetuConsentRequest.DataRange();
         dataRange.setFrom(fromDate.atStartOfDay().format(ISO_DATE_FORMAT));
-        dataRange.setTo(toDate.atTime(23, 59, 59).format(ISO_DATE_FORMAT));
+        dataRange.setTo(toDate.atTime(LocalTime.MAX).format(ISO_DATE_FORMAT));
         request.setDataRange(dataRange);
 
         // Context (optional metadata)
@@ -192,25 +140,71 @@ public class SetuAggregatorService {
     /**
      * Revoke an existing consent.
      */
-    public void revokeConsent(String consentId) throws Exception {
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(setuConfig.getBaseUrl() + "/v2/consents/" + consentId))
-                .header("x-client-id", setuConfig.getClientId())
-                .header("x-client-secret", setuConfig.getClientSecret())
-                .header("x-product-instance-id", setuConfig.getProductInstanceId())
+    public void revokeConsent(String consentId) {
+        log.info("Revoking consent: {}", consentId);
+        HttpRequest httpRequest = newHttpRequestBuilder("/v2/consents/" + consentId)
                 .DELETE()
                 .build();
 
-        log.info("Revoking consent: {}", consentId);
+        sendRequest(httpRequest, Void.class, "revoke consent");
+        log.info("Consent revoked successfully for ID: {}", consentId);
+    }
 
-        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+    /**
+     * Creates a pre-configured HttpRequest.Builder with common headers.
+     * @param path The API endpoint path.
+     * @return A pre-configured HttpRequest.Builder.
+     */
+    private HttpRequest.Builder newHttpRequestBuilder(String path) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(setuConfig.getBaseUrl() + path))
+                .header("x-client-id", setuConfig.getClientId())
+                .header("x-client-secret", setuConfig.getClientSecret())
+                .header("x-product-instance-id", setuConfig.getProductInstanceId());
+    }
 
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            log.error("Consent revocation failed: {} - {}", response.statusCode(), response.body());
-            throw new RuntimeException("Failed to revoke consent: " + response.body());
+    /**
+     * Serializes a request object to a JSON string for the request body.
+     * @param request The request object.
+     * @return The request body publisher.
+     */
+    private HttpRequest.BodyPublisher buildRequestBody(Object request) {
+        try {
+            String requestBody = objectMapper.writeValueAsString(request);
+            return HttpRequest.BodyPublishers.ofString(requestBody);
+        } catch (Exception e) {
+            log.error("Failed to serialize request body", e);
+            throw new SetuApiException("Failed to serialize request body");
         }
+    }
 
-        log.info("Consent revoked successfully: {}", consentId);
+    /**
+     * Sends an HTTP request and handles the response.
+     * @param request The HttpRequest to send.
+     * @param responseType The class of the expected response object.
+     * @param action A description of the action being performed, for logging.
+     * @return The deserialized response object.
+     */
+    private <T> T sendRequest(HttpRequest request, Class<T> responseType, String action) {
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                if (responseType == Void.class) return null;
+                return objectMapper.readValue(response.body(), responseType);
+            } else {
+                log.error("Failed to {}: {} - {}", action, response.statusCode(), response.body());
+                throw new SetuApiException("Failed to " + action + ": " + response.body());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // Restore interrupt status
+            log.error("HTTP request interrupted for {}: {}", action, e.getMessage());
+            throw new SetuApiException("HTTP request interrupted for " + action, e);
+        } catch (SetuApiException e) {
+            throw e; // Re-throw our own exceptions
+        } catch (Exception e) {
+            log.error("Error during HTTP request to {}: {}", action, e.getMessage());
+            throw new SetuApiException("Error during HTTP request to " + action, e);
+        }
     }
 }
-
