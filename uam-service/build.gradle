@@ -15,49 +15,43 @@ repositories {
 }
 
 dependencies {
-
-    // Spring basics
+    // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
 
-	    // PDF parsing
-	    implementation 'org.apache.pdfbox:pdfbox:3.0.2'
-	    // Table extraction from PDFs (Tabula) - exclude slf4j-simple to avoid
-	    // conflicts with Spring Boot's Logback setup
-	    implementation('technology.tabula:tabula:1.0.5') {
-	        exclude group: 'org.slf4j', module: 'slf4j-simple'
-	    }
-
-    // Yugabyte / Postgres driver
+    // Database
     implementation 'org.postgresql:postgresql:42.7.2'
 
-    // Google Cloud (use BOM)
-    implementation platform('com.google.cloud:libraries-bom:26.40.0')
-    implementation 'com.google.cloud:google-cloud-storage'
-    implementation 'com.google.cloud:google-cloud-pubsub'
+    // Password encoding
+    implementation 'org.springframework.security:spring-security-crypto'
 
-    // Util libs
-    implementation 'com.google.guava:guava:33.5.0-jre'
+    // Jackson
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.12'
 
-    // Jackson
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-
-    implementation 'jakarta.validation:jakarta.validation-api'
-
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
+    testImplementation 'com.h2database:h2'
+    testImplementation 'org.assertj:assertj-core'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
 }
+

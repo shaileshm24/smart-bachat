@@ -6,8 +6,10 @@ import com.ametsa.smartbachat.dto.BankConnectionRequestDto;
 import com.ametsa.smartbachat.dto.BankConnectionResponseDto;
 import com.ametsa.smartbachat.dto.setu.*;
 import com.ametsa.smartbachat.entity.BankAccount;
+import com.ametsa.smartbachat.entity.SyncHistory;
 import com.ametsa.smartbachat.entity.TransactionEntity;
 import com.ametsa.smartbachat.repository.BankAccountRepository;
+import com.ametsa.smartbachat.repository.SyncHistoryRepository;
 import com.ametsa.smartbachat.repository.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public class BankConnectionService {
     private final SetuAggregatorService setuService;
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
+    private final SyncHistoryRepository syncHistoryRepository;
     private final BankTransactionMapper transactionMapper;
     private final SetuConfig setuConfig;
 
@@ -39,11 +42,13 @@ public class BankConnectionService {
             SetuAggregatorService setuService,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
+            SyncHistoryRepository syncHistoryRepository,
             BankTransactionMapper transactionMapper,
             SetuConfig setuConfig) {
         this.setuService = setuService;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
+        this.syncHistoryRepository = syncHistoryRepository;
         this.transactionMapper = transactionMapper;
         this.setuConfig = setuConfig;
     }
@@ -117,6 +122,14 @@ public class BankConnectionService {
      */
     @Transactional
     public BankConnectionResponseDto syncAccount(UUID accountId) throws Exception {
+        return syncAccount(accountId, "MANUAL");
+    }
+
+    /**
+     * Sync transactions for a bank account with trigger type.
+     */
+    @Transactional
+    public BankConnectionResponseDto syncAccount(UUID accountId, String triggerType) throws Exception {
         BankAccount account = bankAccountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Bank account not found: " + accountId));
 
@@ -124,34 +137,74 @@ public class BankConnectionService {
             throw new RuntimeException("Consent is not active for this account");
         }
 
-        log.info("Syncing account: {}", accountId);
+        log.info("Syncing account: {} (trigger: {})", accountId, triggerType);
 
-        // Create data session
-        LocalDate toDate = LocalDate.now();
-        LocalDate fromDate = account.getLastSyncedAt() != null
-                ? LocalDate.ofInstant(account.getLastSyncedAt(), java.time.ZoneId.systemDefault())
-                : toDate.minusMonths(setuConfig.getDataFetchMonths());
+        // Create sync history record
+        SyncHistory syncHistory = new SyncHistory();
+        syncHistory.setBankAccountId(accountId);
+        syncHistory.setProfileId(account.getProfileId());
+        syncHistory.setTriggerType(triggerType);
+        syncHistory.setStatus("IN_PROGRESS");
+        syncHistoryRepository.save(syncHistory);
 
-        SetuDataSessionResponse sessionResponse = setuService.createDataSession(
-                account.getConsentId(), fromDate, toDate);
+        try {
+            // Create data session
+            LocalDate toDate = LocalDate.now();
+            LocalDate fromDate = account.getLastSyncedAt() != null
+                    ? LocalDate.ofInstant(account.getLastSyncedAt(), java.time.ZoneId.systemDefault())
+                    : toDate.minusMonths(setuConfig.getDataFetchMonths());
 
-        // Fetch data (in production, this would be async via webhook)
-        SetuFIDataResponse dataResponse = setuService.fetchSessionData(sessionResponse.getId());
+            syncHistory.setDataFromDate(fromDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+            syncHistory.setDataToDate(toDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
 
-        // Process and save transactions
-        int savedCount = processAndSaveTransactions(dataResponse, account);
+            SetuDataSessionResponse sessionResponse = setuService.createDataSession(
+                    account.getConsentId(), fromDate, toDate);
 
-        // Update account
-        account.setLastSessionId(sessionResponse.getId());
-        account.setLastSyncedAt(Instant.now());
-        account.setUpdatedAt(Instant.now());
-        bankAccountRepository.save(account);
+            syncHistory.markInProgress(sessionResponse.getId());
+            syncHistoryRepository.save(syncHistory);
 
-        BankConnectionResponseDto response = new BankConnectionResponseDto();
-        response.setBankAccountId(accountId);
-        response.setStatus("SUCCESS");
-        response.setMessage("Synced " + savedCount + " transactions");
-        return response;
+            // Fetch data (in production, this would be async via webhook)
+            SetuFIDataResponse dataResponse = setuService.fetchSessionData(sessionResponse.getId());
+
+            // Process and save transactions
+            SyncResult result = processAndSaveTransactionsWithCount(dataResponse, account);
+
+            // Update sync history
+            syncHistory.markSuccess(result.fetched, result.saved, result.skipped);
+            syncHistoryRepository.save(syncHistory);
+
+            // Update account
+            account.setLastSessionId(sessionResponse.getId());
+            account.setLastSyncedAt(Instant.now());
+            account.setUpdatedAt(Instant.now());
+            account.setErrorMessage(null);
+            bankAccountRepository.save(account);
+
+            BankConnectionResponseDto response = new BankConnectionResponseDto();
+            response.setBankAccountId(accountId);
+            response.setStatus("SUCCESS");
+            response.setMessage("Synced " + result.saved + " transactions (" + result.skipped + " duplicates skipped)");
+            return response;
+
+        } catch (Exception e) {
+            // Update sync history with error
+            syncHistory.markFailed("SYNC_ERROR", e.getMessage());
+            syncHistoryRepository.save(syncHistory);
+
+            // Update account error
+            account.setErrorMessage("Sync failed: " + e.getMessage());
+            account.setUpdatedAt(Instant.now());
+            bankAccountRepository.save(account);
+
+            throw e;
+        }
+    }
+
+    // Helper class for sync results
+    private static class SyncResult {
+        int fetched;
+        int saved;
+        int skipped;
     }
 
     /**
@@ -285,19 +338,62 @@ public class BankConnectionService {
     }
 
     private void handleSessionStatusUpdate(SetuWebhookPayload payload) {
-        // Session completed - could trigger async data fetch
         log.info("Session status update: sessionId={}, status={}",
                 payload.getSessionId(), payload.getStatus());
+
+        // If session is completed, fetch the data
+        if ("COMPLETED".equalsIgnoreCase(payload.getStatus()) ||
+            "ACTIVE".equalsIgnoreCase(payload.getStatus())) {
+
+            // Find the account by session ID
+            String sessionId = payload.getSessionId();
+            if (sessionId == null) {
+                log.warn("Session status update without sessionId");
+                return;
+            }
+
+            // Find account with this session ID
+            bankAccountRepository.findAll().stream()
+                    .filter(acc -> sessionId.equals(acc.getLastSessionId()))
+                    .findFirst()
+                    .ifPresent(account -> {
+                        try {
+                            log.info("Auto-fetching data for completed session: {}", sessionId);
+                            SetuFIDataResponse dataResponse = setuService.fetchSessionData(sessionId);
+                            int savedCount = processAndSaveTransactions(dataResponse, account);
+
+                            account.setLastSyncedAt(Instant.now());
+                            account.setUpdatedAt(Instant.now());
+                            account.setErrorMessage(null);
+                            bankAccountRepository.save(account);
+
+                            log.info("Auto-fetched {} transactions for account {}", savedCount, account.getId());
+                        } catch (Exception e) {
+                            log.error("Failed to auto-fetch data for session {}: {}", sessionId, e.getMessage());
+                            account.setErrorMessage("Auto-fetch failed: " + e.getMessage());
+                            account.setUpdatedAt(Instant.now());
+                            bankAccountRepository.save(account);
+                        }
+                    });
+        }
     }
 
     /**
      * Process FI data response and save transactions.
      */
     private int processAndSaveTransactions(SetuFIDataResponse dataResponse, BankAccount account) {
-        int savedCount = 0;
+        SyncResult result = processAndSaveTransactionsWithCount(dataResponse, account);
+        return result.saved;
+    }
+
+    /**
+     * Process FI data response and save transactions with detailed counts.
+     */
+    private SyncResult processAndSaveTransactionsWithCount(SetuFIDataResponse dataResponse, BankAccount account) {
+        SyncResult result = new SyncResult();
 
         if (dataResponse.getFips() == null) {
-            return savedCount;
+            return result;
         }
 
         for (SetuFIDataResponse.FIPData fip : dataResponse.getFips()) {
@@ -331,24 +427,28 @@ public class BankConnectionService {
                     accData.getData().getTransactions() != null &&
                     accData.getData().getTransactions().getTransaction() != null) {
 
-                    for (Transaction txn : accData.getData().getTransactions().getTransaction()) {
+                    List<Transaction> transactions = accData.getData().getTransactions().getTransaction();
+                    result.fetched += transactions.size();
+
+                    for (Transaction txn : transactions) {
                         // Check for duplicates
                         if (txn.getTxnId() != null &&
                             transactionRepository.existsByBankAccountIdAndBankTxnId(
                                     account.getId(), txn.getTxnId())) {
+                            result.skipped++;
                             continue;
                         }
 
                         TransactionEntity entity = transactionMapper.mapFromAA(
                                 txn, account.getId(), account.getProfileId());
                         transactionRepository.save(entity);
-                        savedCount++;
+                        result.saved++;
                     }
                 }
             }
         }
 
-        return savedCount;
+        return result;
     }
 
     /**
@@ -397,6 +497,42 @@ public class BankConnectionService {
         dto.setIsPrimary(entity.getIsPrimary());
         dto.setIsActive(entity.getIsActive());
         return dto;
+    }
+
+    /**
+     * Get transactions for a bank account with optional date filtering.
+     */
+    public List<TransactionEntity> getTransactionsForAccount(
+            UUID accountId, String fromDateStr, String toDateStr, int page, int size) {
+
+        // Verify account exists
+        bankAccountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Bank account not found: " + accountId));
+
+        if (fromDateStr != null && toDateStr != null) {
+            LocalDate fromDate = LocalDate.parse(fromDateStr);
+            LocalDate toDate = LocalDate.parse(toDateStr);
+            return transactionRepository.findByBankAccountIdAndTxnDateBetweenOrderByTxnDateDesc(
+                    accountId, fromDate, toDate);
+        }
+
+        return transactionRepository.findByBankAccountIdOrderByTxnDateDescCreatedAtDesc(accountId);
+    }
+
+    /**
+     * Get sync history for a bank account.
+     */
+    public List<SyncHistory> getSyncHistory(UUID accountId, int limit) {
+        // Verify account exists
+        bankAccountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Bank account not found: " + accountId));
+
+        List<SyncHistory> history = syncHistoryRepository.findByBankAccountIdOrderByStartedAtDesc(accountId);
+
+        if (history.size() > limit) {
+            return history.subList(0, limit);
+        }
+        return history;
     }
 }
 

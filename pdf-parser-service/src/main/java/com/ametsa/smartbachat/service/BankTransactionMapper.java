@@ -23,6 +23,12 @@ public class BankTransactionMapper {
     private static final Logger log = LoggerFactory.getLogger(BankTransactionMapper.class);
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
+    private final TransactionCategorizationService categorizationService;
+
+    public BankTransactionMapper(TransactionCategorizationService categorizationService) {
+        this.categorizationService = categorizationService;
+    }
+
     /**
      * Map a Setu AA transaction to TransactionEntity.
      * 
@@ -106,13 +112,16 @@ public class BankTransactionMapper {
         
         // Currency (default INR)
         entity.setCurrency("INR");
-        
+
         // Generate dedupe key
         entity.setDedupeKey(generateDedupeKey(aaTxn, bankAccountId));
-        
+
         // Timestamps
         entity.setCreatedAt(Instant.now());
-        
+
+        // Auto-categorize the transaction
+        categorizationService.categorizeAndUpdate(entity);
+
         return entity;
     }
 

@@ -1,0 +1,73 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: uam-service
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/smartbachat}
+    username: ${DB_USER:yugabyte}
+    password: ${DB_PASSWORD:yugabyte}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # Email Configuration
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+# App Email Configuration
+app:
+  email:
+    from-address: ${MAIL_FROM:noreply@smartbachat.com}
+    from-name: Smart Bachat
+    base-url: ${APP_BASE_URL:http://localhost:3000}
+    verification-token-expiration-minutes: 1440  # 24 hours
+    password-reset-token-expiration-minutes: 60  # 1 hour
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-here-make-it-long-enough-for-hs256}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}  # 24 hours
+  refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}  # 7 days
+  issuer: smart-bachat
+
+# Logging
+logging:
+  level:
+    com.ametsa.smartbachat.uam: DEBUG
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+

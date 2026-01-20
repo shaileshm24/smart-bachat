@@ -3,8 +3,10 @@ package com.ametsa.smartbachat.controller;
 import com.ametsa.smartbachat.dto.BankAccountDto;
 import com.ametsa.smartbachat.dto.BankConnectionRequestDto;
 import com.ametsa.smartbachat.dto.BankConnectionResponseDto;
+import com.ametsa.smartbachat.security.UserPrincipal;
 import com.ametsa.smartbachat.service.BankConnectionService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,13 +27,28 @@ public class BankConnectionController {
     }
 
     /**
+     * Get the profile ID from the authenticated user.
+     */
+    private UUID getProfileId(UserPrincipal principal) {
+        if (principal == null || principal.getProfileId() == null) {
+            throw new RuntimeException("User profile not found. Please complete your profile setup.");
+        }
+        return principal.getProfileId();
+    }
+
+    /**
      * Initiate bank account connection.
      * Returns a redirect URL for user to approve consent.
      */
     @PostMapping("/connect")
     public ResponseEntity<BankConnectionResponseDto> initiateConnection(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Validated @RequestBody BankConnectionRequestDto request) {
         try {
+            // Set profileId from authenticated user if not provided
+            if (request.getProfileId() == null) {
+                request.setProfileId(getProfileId(principal));
+            }
             BankConnectionResponseDto response = bankConnectionService.initiateConnection(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -43,10 +60,11 @@ public class BankConnectionController {
     }
 
     /**
-     * Get all connected bank accounts for a profile.
+     * Get all connected bank accounts for the authenticated user.
      */
     @GetMapping("/accounts")
-    public ResponseEntity<List<BankAccountDto>> getAccounts(@RequestParam UUID profileId) {
+    public ResponseEntity<List<BankAccountDto>> getAccounts(@AuthenticationPrincipal UserPrincipal principal) {
+        UUID profileId = getProfileId(principal);
         List<BankAccountDto> accounts = bankConnectionService.getAccountsForProfile(profileId);
         return ResponseEntity.ok(accounts);
     }
@@ -131,13 +149,54 @@ public class BankConnectionController {
      */
     @PostMapping("/accounts/{accountId}/set-primary")
     public ResponseEntity<BankAccountDto> setPrimary(
-            @PathVariable UUID accountId,
-            @RequestParam UUID profileId) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID accountId) {
+        UUID profileId = getProfileId(principal);
         BankAccountDto account = bankConnectionService.setPrimaryAccount(accountId, profileId);
         if (account == null) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(account);
+    }
+
+    /**
+     * Get transactions for a specific bank account.
+     */
+    @GetMapping("/accounts/{accountId}/transactions")
+    public ResponseEntity<?> getTransactions(
+            @PathVariable UUID accountId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        try {
+            var transactions = bankConnectionService.getTransactionsForAccount(
+                    accountId, fromDate, toDate, page, size);
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "status", "FAILED",
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get sync history for a bank account.
+     */
+    @GetMapping("/accounts/{accountId}/sync-history")
+    public ResponseEntity<?> getSyncHistory(
+            @PathVariable UUID accountId,
+            @RequestParam(defaultValue = "10") int limit) {
+        try {
+            var history = bankConnectionService.getSyncHistory(accountId, limit);
+            return ResponseEntity.ok(history);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "status", "FAILED",
+                    "message", e.getMessage()
+            ));
+        }
     }
 }
 

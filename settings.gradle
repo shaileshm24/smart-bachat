@@ -1,3 +1,4 @@
 rootProject.name = 'SmartBachat'
 include 'pdf-parser-service'
+include 'uam-service'
 

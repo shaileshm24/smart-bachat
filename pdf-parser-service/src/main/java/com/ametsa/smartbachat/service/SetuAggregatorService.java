@@ -18,6 +18,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Service for interacting with Setu Account Aggregator APIs.
@@ -28,6 +29,14 @@ public class SetuAggregatorService {
 
     private static final Logger log = LoggerFactory.getLogger(SetuAggregatorService.class);
     private static final DateTimeFormatter ISO_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+
+    // Retry configuration
+    private static final int MAX_RETRIES = 3;
+    private static final long INITIAL_BACKOFF_MS = 1000; // 1 second
+    private static final double BACKOFF_MULTIPLIER = 2.0;
+
+    // HTTP status codes that should trigger a retry
+    private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(408, 429, 500, 502, 503, 504);
 
     private final SetuConfig setuConfig;
     private final ObjectMapper objectMapper;
@@ -179,32 +188,72 @@ public class SetuAggregatorService {
     }
 
     /**
-     * Sends an HTTP request and handles the response.
+     * Sends an HTTP request with retry logic and exponential backoff.
      * @param request The HttpRequest to send.
      * @param responseType The class of the expected response object.
      * @param action A description of the action being performed, for logging.
      * @return The deserialized response object.
      */
     private <T> T sendRequest(HttpRequest request, Class<T> responseType, String action) {
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        int attempt = 0;
+        long backoffMs = INITIAL_BACKOFF_MS;
+        Exception lastException = null;
 
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                if (responseType == Void.class) return null;
-                return objectMapper.readValue(response.body(), responseType);
-            } else {
-                log.error("Failed to {}: {} - {}", action, response.statusCode(), response.body());
-                throw new SetuApiException("Failed to " + action + ": " + response.body());
+        while (attempt < MAX_RETRIES) {
+            attempt++;
+            try {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                int statusCode = response.statusCode();
+
+                if (statusCode >= 200 && statusCode < 300) {
+                    if (responseType == Void.class) return null;
+                    return objectMapper.readValue(response.body(), responseType);
+                } else if (RETRYABLE_STATUS_CODES.contains(statusCode) && attempt < MAX_RETRIES) {
+                    log.warn("[Setu] Retryable error for {} (attempt {}/{}): {} - {}",
+                            action, attempt, MAX_RETRIES, statusCode, response.body());
+                    sleepWithBackoff(backoffMs);
+                    backoffMs = (long) (backoffMs * BACKOFF_MULTIPLIER);
+                } else {
+                    log.error("Failed to {}: {} - {}", action, statusCode, response.body());
+                    throw new SetuApiException("Failed to " + action + ": " + response.body(), statusCode);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("HTTP request interrupted for {}: {}", action, e.getMessage());
+                throw new SetuApiException("HTTP request interrupted for " + action, e);
+            } catch (SetuApiException e) {
+                throw e;
+            } catch (java.io.IOException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES) {
+                    log.warn("[Setu] IO error for {} (attempt {}/{}): {}",
+                            action, attempt, MAX_RETRIES, e.getMessage());
+                    sleepWithBackoff(backoffMs);
+                    backoffMs = (long) (backoffMs * BACKOFF_MULTIPLIER);
+                } else {
+                    log.error("Error during HTTP request to {}: {}", action, e.getMessage());
+                    throw new SetuApiException("Error during HTTP request to " + action, e);
+                }
+            } catch (Exception e) {
+                log.error("Error during HTTP request to {}: {}", action, e.getMessage());
+                throw new SetuApiException("Error during HTTP request to " + action, e);
             }
+        }
+
+        // Should not reach here, but just in case
+        throw new SetuApiException("Max retries exceeded for " + action, lastException);
+    }
+
+    /**
+     * Sleep for the specified duration, handling interruption.
+     */
+    private void sleepWithBackoff(long millis) {
+        try {
+            log.debug("[Setu] Waiting {}ms before retry", millis);
+            Thread.sleep(millis);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // Restore interrupt status
-            log.error("HTTP request interrupted for {}: {}", action, e.getMessage());
-            throw new SetuApiException("HTTP request interrupted for " + action, e);
-        } catch (SetuApiException e) {
-            throw e; // Re-throw our own exceptions
-        } catch (Exception e) {
-            log.error("Error during HTTP request to {}: {}", action, e.getMessage());
-            throw new SetuApiException("Error during HTTP request to " + action, e);
+            Thread.currentThread().interrupt();
+            throw new SetuApiException("Retry sleep interrupted", e);
         }
     }
 }
