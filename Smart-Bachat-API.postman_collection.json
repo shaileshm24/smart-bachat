@@ -1,0 +1,928 @@
+{
+  "info": {
+    "name": "Smart Bachat API",
+    "description": "Complete API collection for Smart Bachat - UAM Service and PDF Parser Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "uam_base_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "pdf_parser_base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "profile_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "UAM Service",
+      "description": "User Access Management APIs",
+      "item": [
+        {
+          "name": "Authentication",
+          "item": [
+            {
+              "name": "Register",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.collectionVariables.set('access_token', jsonData.accessToken);",
+                      "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                      "    pm.collectionVariables.set('user_id', jsonData.userId);",
+                      "    if (jsonData.profileId) {",
+                      "        pm.collectionVariables.set('profile_id', jsonData.profileId);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"SecurePassword123!\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"phoneNumber\": \"+919876543210\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/register",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "register"]
+                },
+                "description": "Register a new user account"
+              }
+            },
+            {
+              "name": "Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.collectionVariables.set('access_token', jsonData.accessToken);",
+                      "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                      "    pm.collectionVariables.set('user_id', jsonData.userId);",
+                      "    if (jsonData.profileId) {",
+                      "        pm.collectionVariables.set('profile_id', jsonData.profileId);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"SecurePassword123!\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/login",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "login"]
+                },
+                "description": "Login with email and password"
+              }
+            },
+            {
+              "name": "Refresh Token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.collectionVariables.set('access_token', jsonData.accessToken);",
+                      "    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"refreshToken\": \"{{refresh_token}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/refresh",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "refresh"]
+                },
+                "description": "Refresh access token using refresh token"
+              }
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/logout",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "logout"]
+                },
+                "description": "Logout current user"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Email Verification",
+          "item": [
+            {
+              "name": "Verify Email",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"token\": \"verification-token-from-email\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/verify-email",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "verify-email"]
+                },
+                "description": "Verify email address using token from email"
+              }
+            },
+            {
+              "name": "Resend Verification Email",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"user@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/resend-verification",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "resend-verification"]
+                },
+                "description": "Resend email verification link"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Password Reset",
+          "item": [
+            {
+              "name": "Forgot Password",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"user@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/forgot-password",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "forgot-password"]
+                },
+                "description": "Request password reset email"
+              }
+            },
+            {
+              "name": "Validate Reset Token",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/validate-reset-token?token=reset-token-from-email",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "validate-reset-token"],
+                  "query": [
+                    {
+                      "key": "token",
+                      "value": "reset-token-from-email"
+                    }
+                  ]
+                },
+                "description": "Validate password reset token"
+              }
+            },
+            {
+              "name": "Reset Password",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"token\": \"reset-token-from-email\",\n    \"newPassword\": \"NewSecurePassword123!\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/auth/reset-password",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "auth", "reset-password"]
+                },
+                "description": "Reset password using token"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Management",
+          "item": [
+            {
+              "name": "Get Current User",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/users/me",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "users", "me"]
+                },
+                "description": "Get current authenticated user details"
+              }
+            },
+            {
+              "name": "Update Current User",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe Updated\",\n    \"phoneNumber\": \"+919876543211\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/users/me",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "users", "me"]
+                },
+                "description": "Update current user profile"
+              }
+            },
+            {
+              "name": "Get User by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/users/{{user_id}}",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "users", "{{user_id}}"]
+                },
+                "description": "Get user by ID (Admin or self only)"
+              }
+            },
+            {
+              "name": "Get All Users (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/users",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "users"]
+                },
+                "description": "Get all users (Admin only)"
+              }
+            },
+            {
+              "name": "Update User Status (Admin)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"status\": \"ACTIVE\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/users/{{user_id}}/status",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "users", "{{user_id}}", "status"]
+                },
+                "description": "Update user status (Admin only). Values: ACTIVE, INACTIVE, SUSPENDED"
+              }
+            },
+            {
+              "name": "Assign Role (Admin)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"role\": \"PREMIUM_USER\"\n}"
+                },
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/users/{{user_id}}/roles",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "users", "{{user_id}}", "roles"]
+                },
+                "description": "Assign role to user (Admin only)"
+              }
+            },
+            {
+              "name": "Remove Role (Admin)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{uam_base_url}}/api/v1/users/{{user_id}}/roles/PREMIUM_USER",
+                  "host": ["{{uam_base_url}}"],
+                  "path": ["api", "v1", "users", "{{user_id}}", "roles", "PREMIUM_USER"]
+                },
+                "description": "Remove role from user (Admin only)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PDF Parser Service",
+      "description": "PDF Parsing and Bank Connection APIs",
+      "item": [
+        {
+          "name": "PDF Ingestion",
+          "item": [
+            {
+              "name": "Parse PDF (with password)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "/path/to/bank-statement.pdf"
+                    },
+                    {
+                      "key": "password",
+                      "value": "optional-pdf-password",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/ingest/parse",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "ingest", "parse"]
+                },
+                "description": "Parse a PDF bank statement. Optionally provide password for encrypted PDFs."
+              }
+            },
+            {
+              "name": "Parse PDF (simple)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "/path/to/bank-statement.pdf"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/ingest/parse-local-file",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "ingest", "parse-local-file"]
+                },
+                "description": "Parse a PDF bank statement (no password)"
+              }
+            },
+            {
+              "name": "Request Upload (GCS)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "/path/to/bank-statement.pdf"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/ingest/request-upload",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "ingest", "request-upload"]
+                },
+                "description": "Upload PDF to GCS and get signed URL"
+              }
+            },
+            {
+              "name": "Start Ingest Job",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"uploadId\": \"upload-uuid\",\n    \"objectName\": \"path/to/file.pdf\",\n    \"profileId\": \"{{profile_id}}\",\n    \"filename\": \"bank-statement.pdf\"\n}"
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/ingest/start",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "ingest", "start"]
+                },
+                "description": "Start processing an uploaded PDF"
+              }
+            },
+            {
+              "name": "Get Job Status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/ingest/status/:jobId",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "ingest", "status", ":jobId"],
+                  "variable": [
+                    {
+                      "key": "jobId",
+                      "value": "job-uuid"
+                    }
+                  ]
+                },
+                "description": "Get status of a parsing job"
+              }
+            },
+            {
+              "name": "Unlock PDF (submit password)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/plain"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "pdf-password"
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/ingest/:jobId/unlock",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "ingest", ":jobId", "unlock"],
+                  "variable": [
+                    {
+                      "key": "jobId",
+                      "value": "job-uuid"
+                    }
+                  ]
+                },
+                "description": "Submit password for a locked PDF"
+              }
+            },
+            {
+              "name": "Get Statement Transactions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/ingest/statements/:statementId/transactions",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "ingest", "statements", ":statementId", "transactions"],
+                  "variable": [
+                    {
+                      "key": "statementId",
+                      "value": "statement-uuid"
+                    }
+                  ]
+                },
+                "description": "Get all transactions for a parsed statement"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bank Connection (Account Aggregator)",
+          "item": [
+            {
+              "name": "Initiate Bank Connection",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"mobileNumber\": \"9876543210\"\n}"
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/connect",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "connect"]
+                },
+                "description": "Initiate bank account connection via Account Aggregator. Returns redirect URL for consent."
+              }
+            },
+            {
+              "name": "Get All Bank Accounts",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts"]
+                },
+                "description": "Get all connected bank accounts for the authenticated user"
+              }
+            },
+            {
+              "name": "Get Bank Account by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId"],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Get a specific bank account by ID"
+              }
+            },
+            {
+              "name": "Sync Bank Account",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId/sync",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId", "sync"],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Sync transactions for a bank account from AA"
+              }
+            },
+            {
+              "name": "Disconnect Bank Account",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId"],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Disconnect a bank account (revoke consent)"
+              }
+            },
+            {
+              "name": "Get Consent Status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId/consent-status",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId", "consent-status"],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Get consent status for a bank account"
+              }
+            },
+            {
+              "name": "Update Account Nickname",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId/nickname?nickname=My Savings",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId", "nickname"],
+                  "query": [
+                    {
+                      "key": "nickname",
+                      "value": "My Savings"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Update nickname for a bank account"
+              }
+            },
+            {
+              "name": "Set Primary Account",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId/set-primary",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId", "set-primary"],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Set a bank account as primary"
+              }
+            },
+            {
+              "name": "Get Account Transactions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId/transactions?page=0&size=50",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId", "transactions"],
+                  "query": [
+                    {
+                      "key": "fromDate",
+                      "value": "2024-01-01",
+                      "disabled": true
+                    },
+                    {
+                      "key": "toDate",
+                      "value": "2024-12-31",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "50"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Get transactions for a bank account with pagination"
+              }
+            },
+            {
+              "name": "Get Sync History",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/bank/accounts/:accountId/sync-history?limit=10",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "bank", "accounts", ":accountId", "sync-history"],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "accountId",
+                      "value": "account-uuid"
+                    }
+                  ]
+                },
+                "description": "Get sync history for a bank account"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhooks",
+          "item": [
+            {
+              "name": "Setu Webhook",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-setu-signature",
+                    "value": "webhook-signature"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"type\": \"CONSENT_STATUS_UPDATE\",\n    \"timestamp\": \"2024-01-15T10:30:00Z\",\n    \"consentId\": \"consent-uuid\",\n    \"consentStatus\": \"ACTIVE\"\n}"
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/webhooks/setu",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "webhooks", "setu"]
+                },
+                "description": "Setu AA webhook endpoint (called by Setu)"
+              }
+            },
+            {
+              "name": "Webhook Health Check",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/webhooks/setu/health",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "webhooks", "setu", "health"]
+                },
+                "description": "Health check for webhook endpoint"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "item": [
+            {
+              "name": "Health Check",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/actuator/health",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["actuator", "health"]
+                },
+                "description": "Application health check"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

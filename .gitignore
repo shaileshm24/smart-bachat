@@ -1,0 +1,18 @@
+# Compiled class files
+*.class
+
+# Gradle build output
+/build/
+/pdf-parser-service/build/
+/.gradle/
+
+# IDE metadata
+/.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+

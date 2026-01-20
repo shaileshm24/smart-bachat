@@ -2,6 +2,7 @@ package com.ametsa.smartbachat.service;
 
 import com.ametsa.smartbachat.entity.StatementMetadata;
 import com.ametsa.smartbachat.entity.TransactionEntity;
+import com.ametsa.smartbachat.parser.HdfcPdfParser;
 import com.ametsa.smartbachat.repository.StatementMetadataRepository;
 import com.ametsa.smartbachat.repository.TransactionRepository;
 import com.ametsa.smartbachat.util.BankDetectorUtil;
@@ -13,6 +14,8 @@ import com.google.cloud.storage.Storage;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.RandomAccessRead;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -26,12 +29,16 @@ import java.util.UUID;
 @Service
 public class ParserWorker {
 
+    private static final Logger log = LoggerFactory.getLogger(ParserWorker.class);
     private final Storage storage;
     private final StatementMetadataRepository metadataRepository;
     private final TransactionRepository transactionRepository;
     private final ParserFactory parserFactory;
 
-    public ParserWorker(Storage storage, StatementMetadataRepository metadataRepository, TransactionRepository transactionRepository, ParserFactory parserFactory) {
+    public ParserWorker(Storage storage,
+                        StatementMetadataRepository metadataRepository,
+                        TransactionRepository transactionRepository,
+                        ParserFactory parserFactory) {
         this.storage = storage;
         this.metadataRepository = metadataRepository;
         this.transactionRepository = transactionRepository;
@@ -83,21 +90,44 @@ public class ParserWorker {
             meta.setUpdatedAt(Instant.now());
             metadataRepository.save(meta);
 
-            for (int i = 0; i < total; i++) {
-                String pageText = PdfUtil.extractTextFromPages(doc, i+1, i+1);
-                List<TransactionEntity> txns = parser.parse(pageText);
+            Long openingBalancePaisa = null;
+            String documentText = PdfUtil.extractTextFromPages(doc, 1, total);
+            if (parser.extractOpeningBalance(documentText) != null) {
+                openingBalancePaisa = parser.extractOpeningBalance(documentText);
+                log.info("[GCS job] openingBalancePaisa for bank {}: {}", bank, openingBalancePaisa);
+            }
+
+            if (parser.requiresFullDocumentText()) {
+                List<TransactionEntity> txns = parser.parse(documentText, openingBalancePaisa);
                 for (TransactionEntity t : txns) {
                     t.setStatementId(jobId);
                     t.setProfileId(meta.getProfileId());
                     t.setCreatedAt(Instant.now());
                     if (t.getId() == null) t.setId(UUID.randomUUID());
                     buffer.add(t);
+                    if (buffer.size() >= 200) {
+                        transactionRepository.saveAll(buffer);
+                        buffer.clear();
+                    }
                 }
-                if (buffer.size() >= 200) {
-                    transactionRepository.saveAll(buffer);
-                    buffer.clear();
+            } else {
+                for (int i = 0; i < total; i++) {
+                    String pageText = PdfUtil.extractTextFromPages(doc, i + 1, i + 1);
+                    List<TransactionEntity> txns = parser.parse(pageText, openingBalancePaisa);
+                    for (TransactionEntity t : txns) {
+                        t.setStatementId(jobId);
+                        t.setProfileId(meta.getProfileId());
+                        t.setCreatedAt(Instant.now());
+                        if (t.getId() == null) t.setId(UUID.randomUUID());
+                        buffer.add(t);
+                    }
+                    if (buffer.size() >= 200) {
+                        transactionRepository.saveAll(buffer);
+                        buffer.clear();
+                    }
                 }
             }
+
             if (!buffer.isEmpty()) transactionRepository.saveAll(buffer);
 
             meta.setStatus("DONE");
@@ -114,15 +144,24 @@ public class ParserWorker {
     }
 
     /**
+     * Process a PDF file from local filesystem directly (without password).
+     * Delegates to the password-aware overload with null password.
+     */
+    public UUID processLocalFile(String filePath, UUID profileId, String filename) throws Exception {
+        return processLocalFile(filePath, profileId, filename, null);
+    }
+
+    /**
      * Process a PDF file from local filesystem directly.
      * Parses the PDF, extracts transactions, and stores them in the database.
      *
      * @param filePath Path to the local PDF file
      * @param profileId Profile ID for the transactions
      * @param filename Original filename
+     * @param password Optional password for encrypted PDFs (can be null)
      * @return UUID of the created statement/job
      */
-    public UUID processLocalFile(String filePath, UUID profileId, String filename) throws Exception {
+    public UUID processLocalFile(String filePath, UUID profileId, String filename, String password) throws Exception {
         UUID jobId = UUID.randomUUID();
 
         // Create metadata entry
@@ -146,37 +185,62 @@ public class ParserWorker {
 
             PDDocument doc;
             try {
-                doc = Loader.loadPDF(pdfFile);
+                // Try loading with password if provided, otherwise without
+                if (password != null && !password.isEmpty()) {
+                    doc = Loader.loadPDF(pdfFile, password);
+                    log.info("[Local job] PDF loaded with password for file: {}", filename);
+                } else {
+                    doc = Loader.loadPDF(pdfFile);
+                }
             } catch (org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException ipe) {
                 meta.setStatus("PASSWORD_REQUIRED");
+                meta.setErrorMessage("PDF is password protected. Please provide the correct password.");
                 meta.setUpdatedAt(Instant.now());
                 metadataRepository.save(meta);
-                throw new Exception("PDF is password protected");
+                throw new Exception("PDF is password protected or incorrect password provided");
             }
 
             // Detect bank from first few pages
             String firstPages = PdfUtil.extractTextFromPages(doc, 1, Math.min(3, doc.getNumberOfPages()));
             String bank = BankDetectorUtil.detectBank(firstPages);
             PdfParserStrategy parser = parserFactory.getParser(bank);
-
-            // Parse all pages and extract transactions
             List<TransactionEntity> buffer = new ArrayList<>();
             int total = doc.getNumberOfPages();
 
-            for (int i = 0; i < total; i++) {
-                String pageText = PdfUtil.extractTextFromPages(doc, i + 1, i + 1);
-                List<TransactionEntity> txns = parser.parse(pageText);
+            String documentText = PdfUtil.extractTextFromPages(doc, 1, total);
+            Long openingBalancePaisa = parser.extractOpeningBalance(documentText);
+            log.info("[Local job] openingBalancePaisa for bank {}: {}", bank, openingBalancePaisa);
+
+            if (parser.requiresFullDocumentText()) {
+                List<TransactionEntity> txns = parser.parse(documentText, openingBalancePaisa);
                 for (TransactionEntity t : txns) {
                     t.setStatementId(jobId);
                     t.setProfileId(profileId);
                     t.setCreatedAt(Instant.now());
                     if (t.getId() == null) t.setId(UUID.randomUUID());
                     buffer.add(t);
+                    if (buffer.size() >= 200) {
+                        transactionRepository.saveAll(buffer);
+                        buffer.clear();
+                    }
                 }
-                // Batch insert for performance
-                if (buffer.size() >= 200) {
-                    transactionRepository.saveAll(buffer);
-                    buffer.clear();
+            } else {
+                // Fallback for parsers that operate on a page-by-page basis
+                for (int i = 0; i < total; i++) {
+                    String pageText = PdfUtil.extractTextFromPages(doc, i + 1, i + 1);
+                    List<TransactionEntity> txns = parser.parse(pageText, openingBalancePaisa);
+                    for (TransactionEntity t : txns) {
+                        t.setStatementId(jobId);
+                        t.setProfileId(profileId);
+                        t.setCreatedAt(Instant.now());
+                        if (t.getId() == null) t.setId(UUID.randomUUID());
+                        buffer.add(t);
+                    }
+                    // Batch insert for performance
+                    if (buffer.size() >= 200) {
+                        transactionRepository.saveAll(buffer);
+                        buffer.clear();
+                    }
                 }
             }
 

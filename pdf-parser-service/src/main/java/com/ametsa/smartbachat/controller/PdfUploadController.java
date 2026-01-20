@@ -9,11 +9,13 @@ import com.ametsa.smartbachat.dto.UploadResponseDto;
 
 import com.ametsa.smartbachat.entity.TransactionEntity;
 import com.ametsa.smartbachat.repository.TransactionRepository;
+import com.ametsa.smartbachat.security.UserPrincipal;
 import com.ametsa.smartbachat.service.GcsUploadService;
 import com.ametsa.smartbachat.service.JobService;
 import com.ametsa.smartbachat.service.ParserWorker;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,11 +45,22 @@ public class PdfUploadController {
 	        this.transactionRepository = transactionRepository;
 	    }
 
+    /**
+     * Get the profile ID from the authenticated user.
+     */
+    private UUID getProfileId(UserPrincipal principal) {
+        if (principal == null || principal.getProfileId() == null) {
+            throw new RuntimeException("User profile not found. Please complete your profile setup.");
+        }
+        return principal.getProfileId();
+    }
+
     @PostMapping(value = "/request-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UploadResponseDto> requestUpload(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("profileId") String profileId
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("file") MultipartFile file
     ) throws IOException {
+        String profileId = getProfileId(principal).toString();
         // Use original filename or generate unique name
         String filename = file.getOriginalFilename();
 
@@ -59,7 +72,26 @@ public class PdfUploadController {
 
     @PostMapping(value = "/parse-local-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<StartResponseDto> parseLocalFile(
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam("file") MultipartFile file
+    ) throws Exception {
+        return parseLocalFileWithPassword(principal, file, null);
+    }
+
+    /**
+     * Parse a PDF file with optional password support.
+     * Accepts a file and optional password for password-protected PDFs.
+     *
+     * @param principal The authenticated user
+     * @param file The PDF file to parse
+     * @param password Optional password for encrypted PDFs
+     * @return StartResponseDto with the job ID
+     */
+    @PostMapping(value = "/parse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<StartResponseDto> parseLocalFileWithPassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "password", required = false) String password
     ) throws Exception {
         // Validate the file
         if (file.isEmpty()) {
@@ -68,8 +100,8 @@ public class PdfUploadController {
 
         String filename = file.getOriginalFilename();
 
-        // Generate a new profile ID
-        UUID profileId = UUID.randomUUID();
+        // Get profile ID from authenticated user
+        UUID profileId = getProfileId(principal);
 
         // Save file temporarily to local filesystem
         String tempDir = System.getProperty("java.io.tmpdir");
@@ -81,7 +113,7 @@ public class PdfUploadController {
             file.transferTo(tempFile);
 
             // Parse the PDF directly and store transactions to DB
-            UUID jobId = parserWorker.processLocalFile(tempFilePath, profileId, filename);
+            UUID jobId = parserWorker.processLocalFile(tempFilePath, profileId, filename, password);
 
             return ResponseEntity.ok(new StartResponseDto(jobId));
         } finally {

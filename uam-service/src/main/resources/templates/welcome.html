@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to Smart Bachat</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">Smart Bachat</h1>
+    </div>
+    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #333;">Welcome to Smart Bachat! 🎉</h2>
+        <p>Hi <span th:text="${name}">User</span>,</p>
+        <p>Your email has been verified and your account is now active. Welcome to Smart Bachat!</p>
+        <p>Here's what you can do:</p>
+        <ul>
+            <li>Connect your bank accounts securely</li>
+            <li>Track your transactions automatically</li>
+            <li>Get insights into your spending patterns</li>
+            <li>Set budgets and savings goals</li>
+        </ul>
+        <div style="text-align: center; margin: 30px 0;">
+            <a th:href="${loginUrl}" style="background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Get Started</a>
+        </div>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px;">Thank you for choosing Smart Bachat for your financial management.</p>
+    </div>
+</body>
+</html>
+

@@ -18,10 +18,17 @@ import java.util.regex.Pattern;
 @Component
 public class GenericPdfParser implements PdfParserStrategy {
 
+    @Override
+    public String getBankCode() {
+        // Generic fallback parser, used when bank cannot be detected or
+        // there is no dedicated implementation yet.
+        return "GENERIC";
+    }
+
     private static final Pattern TXN_LINE = Pattern.compile("(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\s+(.+?)\\s+(-?\\d+[.,]?\\d*)\\s*$");
 
     @Override
-    public List<TransactionEntity> parse(String pageText) {
+    public List<TransactionEntity> parse(String pageText, Long openingBalancePaisa) {
         List<TransactionEntity> out = new ArrayList<>();
         if (pageText == null) return out;
         String[] lines = pageText.split("\\r?\\n");
