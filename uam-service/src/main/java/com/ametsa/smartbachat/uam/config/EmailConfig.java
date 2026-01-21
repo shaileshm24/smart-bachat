@@ -12,6 +12,7 @@ public class EmailConfig {
     private String baseUrl;
     private Long verificationTokenExpirationMinutes = 1440L; // 24 hours
     private Long passwordResetTokenExpirationMinutes = 60L; // 1 hour
+    private Boolean mockEnabled = false; // When true, logs emails instead of sending
 
     public String getFromAddress() { return fromAddress; }
     public void setFromAddress(String fromAddress) { this.fromAddress = fromAddress; }
@@ -20,12 +21,15 @@ public class EmailConfig {
     public String getBaseUrl() { return baseUrl; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     public Long getVerificationTokenExpirationMinutes() { return verificationTokenExpirationMinutes; }
-    public void setVerificationTokenExpirationMinutes(Long verificationTokenExpirationMinutes) { 
-        this.verificationTokenExpirationMinutes = verificationTokenExpirationMinutes; 
+    public void setVerificationTokenExpirationMinutes(Long verificationTokenExpirationMinutes) {
+        this.verificationTokenExpirationMinutes = verificationTokenExpirationMinutes;
     }
     public Long getPasswordResetTokenExpirationMinutes() { return passwordResetTokenExpirationMinutes; }
-    public void setPasswordResetTokenExpirationMinutes(Long passwordResetTokenExpirationMinutes) { 
-        this.passwordResetTokenExpirationMinutes = passwordResetTokenExpirationMinutes; 
+    public void setPasswordResetTokenExpirationMinutes(Long passwordResetTokenExpirationMinutes) {
+        this.passwordResetTokenExpirationMinutes = passwordResetTokenExpirationMinutes;
     }
+    public Boolean getMockEnabled() { return mockEnabled; }
+    public void setMockEnabled(Boolean mockEnabled) { this.mockEnabled = mockEnabled; }
+    public boolean isMockEnabled() { return Boolean.TRUE.equals(mockEnabled); }
 }
 

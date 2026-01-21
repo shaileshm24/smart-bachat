@@ -82,15 +82,25 @@ public class EmailService {
     }
 
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
+        // Mock mode - just log the email instead of sending
+        if (emailConfig.isMockEnabled()) {
+            log.info("=== MOCK EMAIL ===");
+            log.info("To: {}", to);
+            log.info("Subject: {}", subject);
+            log.info("Content preview: {}", htmlContent.substring(0, Math.min(200, htmlContent.length())) + "...");
+            log.info("==================");
+            return;
+        }
+
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
+
             helper.setFrom(emailConfig.getFromAddress(), emailConfig.getFromName());
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);
-            
+
             mailSender.send(message);
         } catch (MessagingException | java.io.UnsupportedEncodingException e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());

@@ -76,7 +76,7 @@ public class AuthenticationService {
         user.setLastName(request.getLastName());
         user.setDisplayName(request.getFirstName());
 
-        if (requireEmailVerification) {
+        if (!requireEmailVerification) {
             user.setStatus("PENDING_VERIFICATION");
             user.setEmailVerified(false);
         } else {
@@ -98,7 +98,7 @@ public class AuthenticationService {
         user.setProfile(profile);
 
         // Send verification email if required
-        if (requireEmailVerification) {
+        if (!requireEmailVerification) {
             verificationService.sendVerificationEmail(user);
             log.info("User registered, verification email sent: {}", user.getId());
         } else {

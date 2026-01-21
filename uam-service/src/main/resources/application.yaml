@@ -21,9 +21,11 @@ spring:
         format_sql: true
 
   # Email Configuration
+  # For Gmail: use smtp.gmail.com:587 with app password
+  # For Mailtrap (dev): use sandbox.smtp.mailtrap.io:2525
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
+    host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
+    port: ${MAIL_PORT:2525}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
@@ -32,19 +34,21 @@ spring:
           auth: true
           starttls:
             enable: true
-            required: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
+            required: false
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 # App Email Configuration
 app:
   email:
-    from-address: ${MAIL_FROM:noreply@smartbachat.com}
+    from-address: ${MAIL_FROM:shaileshmali0122@gmail.com}
     from-name: Smart Bachat
     base-url: ${APP_BASE_URL:http://localhost:3000}
     verification-token-expiration-minutes: 1440  # 24 hours
     password-reset-token-expiration-minutes: 60  # 1 hour
+    # Set to true to log emails instead of sending (for local dev when SMTP is blocked)
+    mock-enabled: ${MAIL_MOCK_ENABLED:true}
 
 # JWT Configuration
 jwt:
