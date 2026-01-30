@@ -1,0 +1,265 @@
+{
+  "info": {
+    "_postman_id": "ai-advisor-service-2026",
+    "name": "AI Advisor Service APIs",
+    "description": "Smart Bachat AI-powered financial advisor APIs.\n\n## Authentication\nAll endpoints (except health check) require a valid JWT token in the Authorization header.\n\n## Setup\n1. Set `base_url` variable to `http://localhost:8082`\n2. Set `auth_token` variable with a valid JWT token from UAM service\n\n## Endpoints\n- **Spending Analysis**: Analyze spending patterns\n- **Savings Capacity**: Calculate safe savings amount\n- **Goal Recommendation**: Get advice for savings goals\n- **AI Insights**: GPT-4o powered financial insights\n- **AI Goal Advice**: Personalized goal advice",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health & Info",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the AI Advisor service is running."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"healthy\",\n  \"service\": \"ai-advisor-service\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Service Info",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Get service information and available endpoints."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Spending Analysis",
+      "item": [
+        {
+          "name": "Get Spending Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/advisor/spending-analysis?months=6",
+              "host": ["{{base_url}}"],
+              "path": ["api", "advisor", "spending-analysis"],
+              "query": [
+                {
+                  "key": "months",
+                  "value": "6",
+                  "description": "Number of months to analyze (1-24, default: 6)"
+                }
+              ]
+            },
+            "description": "Analyze spending patterns for the authenticated user.\n\nReturns:\n- Category-wise breakdown\n- Monthly trends\n- Top spending categories\n- Potential savings areas"
+          },
+          "response": [
+            {
+              "name": "Success - With Data",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"profile_id\": \"3fd74e05-254a-48b4-9886-46b1a3a936f1\",\n  \"analysis_period_start\": \"2025-08-03\",\n  \"analysis_period_end\": \"2026-01-30\",\n  \"total_income\": 450000.0,\n  \"total_expenses\": 320000.0,\n  \"net_savings\": 130000.0,\n  \"avg_monthly_income\": 75000.0,\n  \"avg_monthly_expense\": 53333.33,\n  \"avg_monthly_savings\": 21666.67,\n  \"savings_rate\": 28.89,\n  \"category_breakdown\": [\n    {\n      \"category\": \"FOOD\",\n      \"total_amount\": 72000.0,\n      \"transaction_count\": 180,\n      \"percent_of_total\": 22.5,\n      \"percent_of_income\": 16.0,\n      \"avg_transaction\": 400.0,\n      \"trend\": \"STABLE\"\n    }\n  ],\n  \"monthly_trend\": [\n    {\n      \"month\": \"2025-08\",\n      \"total_income\": 75000.0,\n      \"total_expense\": 52000.0,\n      \"net_savings\": 23000.0,\n      \"savings_rate\": 30.67\n    }\n  ],\n  \"top_spending_categories\": [\"FOOD\", \"UTILITIES\", \"SHOPPING\"],\n  \"potential_savings_categories\": []\n}"
+            },
+            {
+              "name": "Success - No Data",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"profile_id\": \"3fd74e05-254a-48b4-9886-46b1a3a936f1\",\n  \"analysis_period_start\": \"2025-08-03\",\n  \"analysis_period_end\": \"2026-01-30\",\n  \"total_income\": 0.0,\n  \"total_expenses\": 0.0,\n  \"net_savings\": 0.0,\n  \"avg_monthly_income\": 0.0,\n  \"avg_monthly_expense\": 0.0,\n  \"avg_monthly_savings\": 0.0,\n  \"savings_rate\": 0.0,\n  \"category_breakdown\": [],\n  \"monthly_trend\": [],\n  \"top_spending_categories\": [],\n  \"potential_savings_categories\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Savings Capacity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/advisor/savings-capacity",
+              "host": ["{{base_url}}"],
+              "path": ["api", "advisor", "savings-capacity"]
+            },
+            "description": "Calculate how much the user can safely save each month.\n\nAnalyzes income and expense patterns to determine:\n- Safe monthly savings (without impacting essentials)\n- Aggressive savings potential\n- Recommended savings amount"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"profile_id\": \"3fd74e05-254a-48b4-9886-46b1a3a936f1\",\n  \"avg_monthly_income\": 75000.0,\n  \"avg_monthly_essential_expenses\": 35000.0,\n  \"avg_monthly_discretionary_expenses\": 18000.0,\n  \"current_savings_rate\": 29.33,\n  \"safe_monthly_savings\": 22000.0,\n  \"aggressive_monthly_savings\": 40000.0,\n  \"recommended_monthly_savings\": 25000.0,\n  \"confidence_score\": 0.85,\n  \"explanation\": \"Your current savings rate is 29%. By optimizing discretionary spending, you could save ₹25,000 per month.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Goal Recommendations",
+      "item": [
+        {
+          "name": "Get Goal Recommendation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"goal_name\": \"Goa Trip\",\n  \"goal_type\": \"TRAVEL\",\n  \"target_amount\": 50000,\n  \"current_amount\": 10000,\n  \"deadline\": \"2026-06-30\",\n  \"priority\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/advisor/goal-recommendation",
+              "host": ["{{base_url}}"],
+              "path": ["api", "advisor", "goal-recommendation"]
+            },
+            "description": "Get AI-powered recommendation for a specific savings goal.\n\nAnalyzes user's spending patterns and provides:\n- Suggested monthly saving amount\n- Whether the goal is achievable by deadline\n- Adjusted deadline if needed\n- Actionable tips"
+          },
+          "response": [
+            {
+              "name": "Achievable Goal",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"recommendation_type\": \"MONTHLY_SAVING\",\n  \"message\": \"Great news! You can achieve your Goa Trip goal by saving ₹8,000/month. This is well within your capacity of ₹25,000/month.\",\n  \"suggested_monthly_saving\": 8000.0,\n  \"is_achievable\": true,\n  \"adjusted_deadline\": null,\n  \"confidence_score\": 0.85,\n  \"tips\": [\n    \"Set up an automatic transfer of ₹8,000 on salary day\",\n    \"Consider a recurring deposit for this goal\",\n    \"Track your progress weekly to stay motivated\"\n  ]\n}"
+            },
+            {
+              "name": "Goal Needs Adjustment",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"recommendation_type\": \"GOAL_ADJUSTMENT\",\n  \"message\": \"To meet your Goa Trip goal on time, you'd need to save ₹8,000/month. Consider increasing savings by ₹8,000 or extending deadline to January 2028.\",\n  \"suggested_monthly_saving\": 0.0,\n  \"is_achievable\": false,\n  \"adjusted_deadline\": \"2028-01-20\",\n  \"confidence_score\": 0.5,\n  \"tips\": [\n    \"Review discretionary spending for potential cuts\",\n    \"Consider a side income to boost savings\",\n    \"Realistic monthly saving: ₹0\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Insights (Rule-based)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/advisor/insights",
+              "host": ["{{base_url}}"],
+              "path": ["api", "advisor", "insights"]
+            },
+            "description": "Get personalized financial insights based on spending patterns (rule-based).\n\nReturns actionable insights about:\n- Unusual spending patterns\n- Savings opportunities\n- Budget recommendations"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"profile_id\": \"3fd74e05-254a-48b4-9886-46b1a3a936f1\",\n  \"generated_at\": \"2026-01-30\",\n  \"insights\": [\n    {\n      \"insight_type\": \"SPENDING_ALERT\",\n      \"title\": \"High Food Spending\",\n      \"message\": \"Your food spending is 22% of income. Consider meal planning to reduce costs.\",\n      \"category\": \"FOOD\",\n      \"amount\": 12000.0,\n      \"action_type\": \"REDUCE_SPENDING\",\n      \"priority\": \"MEDIUM\"\n    }\n  ],\n  \"summary\": \"You have 2 areas where you can optimize spending.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI-Powered (OpenAI)",
+      "item": [
+        {
+          "name": "Get AI Insights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/advisor/ai-insights",
+              "host": ["{{base_url}}"],
+              "path": ["api", "advisor", "ai-insights"]
+            },
+            "description": "Get AI-powered personalized financial insights using OpenAI GPT-4o.\n\nProvides:\n- Comprehensive financial health assessment\n- Personalized recommendations based on spending patterns\n- Actionable tips tailored to Indian context\n- Financial health score (0-100)\n\n**Note**: Falls back to rule-based insights if OpenAI is unavailable or quota exceeded."
+          },
+          "response": [
+            {
+              "name": "AI Response",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"summary\": \"Your financial health score is 72/100. You're doing well with a 29% savings rate! Focus on reducing discretionary spending to reach your goals faster.\",\n  \"recommendations\": [\n    {\n      \"title\": \"Optimize Food Spending\",\n      \"message\": \"Your food expenses are ₹12,000/month (16% of income). Consider cooking at home more often and using apps like Swiggy/Zomato only for special occasions. Potential savings: ₹3,000/month.\",\n      \"priority\": \"MEDIUM\",\n      \"action_type\": \"REDUCE_SPENDING\",\n      \"category\": \"FOOD\",\n      \"potential_savings\": 3000.0,\n      \"confidence\": 0.85\n    },\n    {\n      \"title\": \"Start a SIP\",\n      \"message\": \"With your stable income, consider starting a ₹5,000 monthly SIP in a Nifty 50 index fund. This can grow to ₹7.5 lakhs in 10 years at 12% returns.\",\n      \"priority\": \"HIGH\",\n      \"action_type\": \"INVEST\",\n      \"category\": null,\n      \"potential_savings\": null,\n      \"confidence\": 0.85\n    }\n  ],\n  \"personalized_tips\": [\n    \"Set up UPI autopay for your SIP investments\",\n    \"Keep 3 months expenses (₹1.6L) in a liquid fund as emergency fund\",\n    \"Review subscriptions - cancel unused OTT platforms\"\n  ],\n  \"financial_health_score\": 72\n}"
+            },
+            {
+              "name": "Fallback Response",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"summary\": \"Your financial health score is 50/100. There's room for improvement. Small changes can make a big difference.\",\n  \"recommendations\": [\n    {\n      \"title\": \"Critical: Low Savings\",\n      \"message\": \"Your savings rate is below 10%. Review expenses and create a strict budget.\",\n      \"priority\": \"HIGH\",\n      \"action_type\": \"BUDGET\",\n      \"category\": null,\n      \"potential_savings\": null,\n      \"confidence\": 0.8\n    }\n  ],\n  \"personalized_tips\": [],\n  \"financial_health_score\": 50\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get AI Goal Advice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"goal_name\": \"Goa Trip\",\n  \"goal_type\": \"TRAVEL\",\n  \"target_amount\": 50000,\n  \"current_amount\": 10000,\n  \"deadline\": \"2026-06-30\",\n  \"priority\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/advisor/ai-goal-advice",
+              "host": ["{{base_url}}"],
+              "path": ["api", "advisor", "ai-goal-advice"]
+            },
+            "description": "Get AI-powered personalized advice for a specific savings goal.\n\nUses OpenAI GPT-4o to generate contextual, encouraging advice based on:\n- User's financial situation\n- Goal details\n- Spending patterns\n\n**Note**: Falls back to rule-based advice if OpenAI is unavailable."
+          },
+          "response": [
+            {
+              "name": "AI Response",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"goal_name\": \"Goa Trip\",\n  \"ai_advice\": \"Great choice for a Goa trip! 🏖️ With ₹40,000 remaining and 5 months to go, you need to save ₹8,000/month. Based on your spending, I suggest: 1) Reduce dining out by ₹2,000/month 2) Skip one shopping trip (₹3,000) 3) The remaining ₹3,000 from your regular savings. Pro tip: Book flights now on MakeMyTrip - prices are 30% lower 5 months in advance!\",\n  \"recommendation\": {\n    \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"recommendation_type\": \"MONTHLY_SAVING\",\n    \"message\": \"Great news! You can achieve your Goa Trip goal by saving ₹8,000/month.\",\n    \"suggested_monthly_saving\": 8000.0,\n    \"is_achievable\": true,\n    \"adjusted_deadline\": null,\n    \"confidence_score\": 0.85,\n    \"tips\": [\n      \"Set up an automatic transfer of ₹8,000 on salary day\",\n      \"Consider a recurring deposit for this goal\",\n      \"Track your progress weekly to stay motivated\"\n    ]\n  },\n  \"ai_available\": true\n}"
+            },
+            {
+              "name": "Fallback Response",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"goal_name\": \"Goa Trip\",\n  \"ai_advice\": \"To achieve your Goa Trip goal of ₹50,000, consider saving ₹3,333 monthly. Upload your bank statements to get personalized recommendations.\",\n  \"recommendation\": {\n    \"goal_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"recommendation_type\": \"GOAL_ADJUSTMENT\",\n    \"message\": \"To meet your Goa Trip goal on time, you'd need to save ₹8,000/month.\",\n    \"suggested_monthly_saving\": 0.0,\n    \"is_achievable\": false,\n    \"adjusted_deadline\": \"2028-01-20\",\n    \"confidence_score\": 0.5,\n    \"tips\": [\n      \"Review discretionary spending for potential cuts\",\n      \"Consider a side income to boost savings\"\n    ]\n  },\n  \"ai_available\": true\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

@@ -16,3 +16,15 @@
 .DS_Store
 Thumbs.db
 
+# Environment files (contain secrets!)
+.env
+*.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/

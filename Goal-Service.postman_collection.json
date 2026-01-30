@@ -1,0 +1,235 @@
+{
+  "info": {
+    "_postman_id": "goal-service-2026",
+    "name": "Goal Service APIs",
+    "description": "Smart Bachat Savings Goals Management APIs.\n\n## Authentication\nAll endpoints require a valid JWT token in the Authorization header.\n\n## Setup\n1. Set `base_url` variable to `http://localhost:8080`\n2. Set `auth_token` variable with a valid JWT token from UAM service\n\n## Goal Types\n- TRAVEL, GADGET, EMERGENCY, HOME, VEHICLE, EDUCATION, WEDDING, CUSTOM\n\n## Goal Status\n- ACTIVE, COMPLETED, PAUSED, CANCELLED\n\n## Priority\n- HIGH, MEDIUM, LOW",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080", "type": "string" },
+    { "key": "auth_token", "value": "YOUR_JWT_TOKEN_HERE", "type": "string" },
+    { "key": "goal_id", "value": "", "type": "string" },
+    { "key": "contribution_id", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{auth_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Goals CRUD",
+      "item": [
+        {
+          "name": "Create Goal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('goal_id', jsonData.id);",
+                  "    console.log('Goal ID saved:', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Goa Trip 2026\",\n  \"goalType\": \"TRAVEL\",\n  \"targetAmount\": 50000,\n  \"deadline\": \"2026-06-30\",\n  \"priority\": \"HIGH\",\n  \"icon\": \"✈️\",\n  \"color\": \"#4CAF50\",\n  \"notes\": \"Beach vacation with friends\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/goals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals"]
+            },
+            "description": "Create a new savings goal.\n\n**Required fields:**\n- name: Goal name\n- goalType: TRAVEL, GADGET, EMERGENCY, HOME, VEHICLE, EDUCATION, WEDDING, CUSTOM\n- targetAmount: Target amount in rupees\n\n**Optional fields:**\n- deadline: Target date (YYYY-MM-DD)\n- priority: HIGH, MEDIUM, LOW\n- icon: Emoji or icon code\n- color: Hex color code\n- notes: Additional notes"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Goals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/goals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals"]
+            },
+            "description": "Get all goals for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Goals by Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/goals?status=ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals"],
+              "query": [{ "key": "status", "value": "ACTIVE", "description": "ACTIVE, COMPLETED, PAUSED, CANCELLED" }]
+            },
+            "description": "Get goals filtered by status."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Goals Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/goals/summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "summary"]
+            },
+            "description": "Get goals dashboard summary with:\n- Total/active/completed goals count\n- Total target and saved amounts\n- Overall progress percentage\n- Goals on track vs behind schedule\n- AI recommendations"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Goal by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}"]
+            },
+            "description": "Get a specific goal with recent contributions."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Goal",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Goa Trip - Summer 2026\",\n  \"targetAmount\": 60000,\n  \"deadline\": \"2026-07-15\",\n  \"priority\": \"HIGH\",\n  \"notes\": \"Extended trip - 5 days instead of 3\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}"]
+            },
+            "description": "Update an existing goal. All fields are optional."
+          },
+          "response": []
+        },
+        {
+          "name": "Pause Goal",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PAUSED\",\n  \"notes\": \"Pausing due to unexpected expenses\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}"]
+            },
+            "description": "Pause a goal temporarily."
+          },
+          "response": []
+        },
+        {
+          "name": "Resume Goal",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}"]
+            },
+            "description": "Resume a paused goal."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Goal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}"]
+            },
+            "description": "Delete a goal permanently."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contributions",
+      "item": [
+        {
+          "name": "Add Contribution",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('contribution_id', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"contributionDate\": \"2026-01-30\",\n  \"source\": \"MANUAL\",\n  \"notes\": \"January savings\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}/contributions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}", "contributions"]
+            },
+            "description": "Add a contribution to a goal.\n\n**Required:**\n- amount: Amount in rupees\n\n**Optional:**\n- contributionDate: Date (defaults to today)\n- source: MANUAL or TRANSFER\n- transactionId: Link to a transaction\n- notes: Additional notes"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contributions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}/contributions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}", "contributions"]
+            },
+            "description": "Get all contributions for a goal."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
+

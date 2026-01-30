@@ -34,6 +34,16 @@
       "key": "profile_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "ai_advisor_base_url",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "goal_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
@@ -920,6 +930,313 @@
               }
             }
           ]
+        },
+        {
+          "name": "Transactions",
+          "description": "Unified Transaction APIs",
+          "item": [
+            {
+              "name": "Get All Transactions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/transactions?startDate=2025-01-01&endDate=2026-01-31",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "transactions"],
+                  "query": [
+                    {"key": "startDate", "value": "2025-01-01"},
+                    {"key": "endDate", "value": "2026-01-31"}
+                  ]
+                },
+                "description": "Get all transactions for the user with optional date filters"
+              }
+            },
+            {
+              "name": "Get Transactions by Category",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/transactions?category=FOOD",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "transactions"],
+                  "query": [{"key": "category", "value": "FOOD"}]
+                },
+                "description": "Get transactions filtered by category"
+              }
+            },
+            {
+              "name": "Get Spending by Category",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/transactions/spending-by-category?startDate=2025-01-01&endDate=2026-01-31",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "transactions", "spending-by-category"],
+                  "query": [
+                    {"key": "startDate", "value": "2025-01-01"},
+                    {"key": "endDate", "value": "2026-01-31"}
+                  ]
+                },
+                "description": "Get spending breakdown by category"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Savings Goals",
+          "description": "Savings Goals Management APIs",
+          "item": [
+            {
+              "name": "Create Goal",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.collectionVariables.set('goal_id', jsonData.id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Goa Trip\",\n    \"goalType\": \"TRAVEL\",\n    \"targetAmount\": 50000,\n    \"deadline\": \"2026-06-30\",\n    \"priority\": \"HIGH\",\n    \"icon\": \"beach\",\n    \"color\": \"#4CAF50\",\n    \"notes\": \"Summer vacation with family\"\n}"
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals"]
+                },
+                "description": "Create a new savings goal"
+              }
+            },
+            {
+              "name": "Get All Goals",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals"]
+                },
+                "description": "Get all savings goals for the user"
+              }
+            },
+            {
+              "name": "Get Goals Summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals/summary",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals", "summary"]
+                },
+                "description": "Get goals dashboard summary"
+              }
+            },
+            {
+              "name": "Get Goal by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals/{{goal_id}}",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals", "{{goal_id}}"]
+                },
+                "description": "Get a specific goal with details"
+              }
+            },
+            {
+              "name": "Update Goal",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"targetAmount\": 60000,\n    \"deadline\": \"2026-07-31\",\n    \"notes\": \"Extended trip plan\"\n}"
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals/{{goal_id}}",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals", "{{goal_id}}"]
+                },
+                "description": "Update an existing goal"
+              }
+            },
+            {
+              "name": "Add Contribution",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"amount\": 5000,\n    \"notes\": \"Monthly saving\"\n}"
+                },
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals/{{goal_id}}/contributions",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals", "{{goal_id}}", "contributions"]
+                },
+                "description": "Add a contribution to a goal"
+              }
+            },
+            {
+              "name": "Get Contributions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals/{{goal_id}}/contributions",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals", "{{goal_id}}", "contributions"]
+                },
+                "description": "Get all contributions for a goal"
+              }
+            },
+            {
+              "name": "Delete Goal",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/goals/{{goal_id}}",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "goals", "{{goal_id}}"]
+                },
+                "description": "Delete a savings goal"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI Advisor Service",
+      "description": "AI-powered financial advisor APIs",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ai_advisor_base_url}}/health",
+              "host": ["{{ai_advisor_base_url}}"],
+              "path": ["health"]
+            },
+            "description": "AI Advisor service health check"
+          }
+        },
+        {
+          "name": "Spending Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ai_advisor_base_url}}/api/advisor/spending-analysis?months=6",
+              "host": ["{{ai_advisor_base_url}}"],
+              "path": ["api", "advisor", "spending-analysis"],
+              "query": [{"key": "months", "value": "6"}]
+            },
+            "description": "Get detailed spending analysis"
+          }
+        },
+        {
+          "name": "Savings Capacity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ai_advisor_base_url}}/api/advisor/savings-capacity",
+              "host": ["{{ai_advisor_base_url}}"],
+              "path": ["api", "advisor", "savings-capacity"]
+            },
+            "description": "Calculate safe monthly savings capacity"
+          }
+        },
+        {
+          "name": "Goal Recommendation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"goal_id\": \"{{goal_id}}\",\n    \"goal_name\": \"Goa Trip\",\n    \"goal_type\": \"TRAVEL\",\n    \"target_amount\": 50000,\n    \"current_amount\": 5000,\n    \"deadline\": \"2026-06-30\",\n    \"priority\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{ai_advisor_base_url}}/api/advisor/goal-recommendation",
+              "host": ["{{ai_advisor_base_url}}"],
+              "path": ["api", "advisor", "goal-recommendation"]
+            },
+            "description": "Get AI recommendation for a specific goal"
+          }
+        },
+        {
+          "name": "Financial Insights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ai_advisor_base_url}}/api/advisor/insights",
+              "host": ["{{ai_advisor_base_url}}"],
+              "path": ["api", "advisor", "insights"]
+            },
+            "description": "Get personalized financial insights (rule-based)"
+          }
+        },
+        {
+          "name": "AI-Powered Insights (OpenAI)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ai_advisor_base_url}}/api/advisor/ai-insights",
+              "host": ["{{ai_advisor_base_url}}"],
+              "path": ["api", "advisor", "ai-insights"]
+            },
+            "description": "Get AI-powered personalized insights using OpenAI GPT-4"
+          }
+        },
+        {
+          "name": "AI Goal Advice (OpenAI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"goal_id\": \"{{goal_id}}\",\n    \"goal_name\": \"Goa Trip\",\n    \"goal_type\": \"TRAVEL\",\n    \"target_amount\": 50000,\n    \"current_amount\": 15000,\n    \"deadline\": \"2026-06-30\",\n    \"priority\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{ai_advisor_base_url}}/api/advisor/ai-goal-advice",
+              "host": ["{{ai_advisor_base_url}}"],
+              "path": ["api", "advisor", "ai-goal-advice"]
+            },
+            "description": "Get AI-powered personalized advice for a specific goal"
+          }
         }
       ]
     }
