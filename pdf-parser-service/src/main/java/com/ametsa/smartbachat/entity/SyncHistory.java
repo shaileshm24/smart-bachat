@@ -10,6 +10,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "sync_history", indexes = {
+        @Index(name = "idx_sync_history_user", columnList = "user_id"),
         @Index(name = "idx_sync_history_account", columnList = "bank_account_id"),
         @Index(name = "idx_sync_history_status", columnList = "status"),
         @Index(name = "idx_sync_history_started", columnList = "started_at")
@@ -19,6 +20,10 @@ public class SyncHistory {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    // User ID from UAM service (logged-in user)
+    @Column(name = "user_id")
+    private UUID userId;
 
     @Column(name = "bank_account_id", nullable = false)
     private UUID bankAccountId;
@@ -86,6 +91,8 @@ public class SyncHistory {
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+    public UUID getUserId() { return userId; }
+    public void setUserId(UUID userId) { this.userId = userId; }
     public UUID getBankAccountId() { return bankAccountId; }
     public void setBankAccountId(UUID bankAccountId) { this.bankAccountId = bankAccountId; }
     public UUID getProfileId() { return profileId; }

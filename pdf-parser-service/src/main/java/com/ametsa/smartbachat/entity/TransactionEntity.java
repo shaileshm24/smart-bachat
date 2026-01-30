@@ -8,6 +8,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "transactions", indexes = {
+        @Index(name = "idx_transaction_user", columnList = "user_id"),
         @Index(name = "idx_transaction_statement", columnList = "statement_id"),
         @Index(name = "idx_transaction_bank_account", columnList = "bank_account_id"),
         @Index(name = "idx_transaction_profile", columnList = "profile_id"),
@@ -19,6 +20,10 @@ public class TransactionEntity {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    // User ID from UAM service (logged-in user)
+    @Column(name = "user_id")
+    private UUID userId;
 
     @Column(name = "statement_id")
     private UUID statementId;
@@ -145,6 +150,8 @@ public class TransactionEntity {
     // getters & setters omitted for brevity
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+    public UUID getUserId() { return userId; }
+    public void setUserId(UUID userId) { this.userId = userId; }
     public UUID getStatementId() { return statementId; }
     public void setStatementId(UUID statementId) { this.statementId = statementId; }
     public UUID getProfileId() { return profileId; }

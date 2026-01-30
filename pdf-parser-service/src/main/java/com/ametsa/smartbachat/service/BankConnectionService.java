@@ -5,12 +5,15 @@ import com.ametsa.smartbachat.dto.BankAccountDto;
 import com.ametsa.smartbachat.dto.BankConnectionRequestDto;
 import com.ametsa.smartbachat.dto.BankConnectionResponseDto;
 import com.ametsa.smartbachat.dto.setu.*;
+import com.ametsa.smartbachat.entity.AccountHolderEntity;
 import com.ametsa.smartbachat.entity.BankAccount;
 import com.ametsa.smartbachat.entity.SyncHistory;
 import com.ametsa.smartbachat.entity.TransactionEntity;
+import com.ametsa.smartbachat.repository.AccountHolderRepository;
 import com.ametsa.smartbachat.repository.BankAccountRepository;
 import com.ametsa.smartbachat.repository.SyncHistoryRepository;
 import com.ametsa.smartbachat.repository.TransactionRepository;
+import com.ametsa.smartbachat.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -35,22 +38,28 @@ public class BankConnectionService {
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final SyncHistoryRepository syncHistoryRepository;
+    private final AccountHolderRepository accountHolderRepository;
     private final BankTransactionMapper transactionMapper;
     private final SetuConfig setuConfig;
+    private final SecurityUtils securityUtils;
 
     public BankConnectionService(
             SetuAggregatorService setuService,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             SyncHistoryRepository syncHistoryRepository,
+            AccountHolderRepository accountHolderRepository,
             BankTransactionMapper transactionMapper,
-            SetuConfig setuConfig) {
+            SetuConfig setuConfig,
+            SecurityUtils securityUtils) {
         this.setuService = setuService;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.syncHistoryRepository = syncHistoryRepository;
+        this.accountHolderRepository = accountHolderRepository;
         this.transactionMapper = transactionMapper;
         this.setuConfig = setuConfig;
+        this.securityUtils = securityUtils;
     }
 
     /**
@@ -58,7 +67,8 @@ public class BankConnectionService {
      */
     @Transactional
     public BankConnectionResponseDto initiateConnection(BankConnectionRequestDto request) throws Exception {
-        log.info("Initiating bank connection for profile: {}", request.getProfileId());
+        UUID userId = securityUtils.requireCurrentUserId();
+        log.info("Initiating bank connection for user: {}, profile: {}", userId, request.getProfileId());
 
         // Calculate data range
         LocalDate toDate = LocalDate.now();
@@ -78,6 +88,7 @@ public class BankConnectionService {
         // Create bank account record (pending consent)
         BankAccount bankAccount = new BankAccount();
         bankAccount.setId(UUID.randomUUID());
+        bankAccount.setUserId(userId);
         bankAccount.setProfileId(request.getProfileId());
         bankAccount.setConsentId(consentResponse.getId());
         bankAccount.setConsentStatus("PENDING");
@@ -141,6 +152,7 @@ public class BankConnectionService {
 
         // Create sync history record
         SyncHistory syncHistory = new SyncHistory();
+        syncHistory.setUserId(account.getUserId());
         syncHistory.setBankAccountId(accountId);
         syncHistory.setProfileId(account.getProfileId());
         syncHistory.setTriggerType(triggerType);
@@ -148,11 +160,34 @@ public class BankConnectionService {
         syncHistoryRepository.save(syncHistory);
 
         try {
-            // Create data session
-            LocalDate toDate = LocalDate.now();
-            LocalDate fromDate = account.getLastSyncedAt() != null
-                    ? LocalDate.ofInstant(account.getLastSyncedAt(), java.time.ZoneId.systemDefault())
-                    : toDate.minusMonths(setuConfig.getDataFetchMonths());
+            // Get consent details to find the allowed data range
+            SetuConsentResponse consentDetails = setuService.getConsentStatus(account.getConsentId(), true);
+            log.info("Consent details - status: {}, detail: {}",
+                    consentDetails.getStatus(),
+                    consentDetails.getDetail() != null ? "present" : "null");
+
+            LocalDate fromDate;
+            LocalDate toDate;
+
+            // Use the consent's data range - the data session range must be within this
+            // For toDate, use yesterday to avoid any timezone issues with "today"
+            if (consentDetails.getDetail() != null && consentDetails.getDetail().getDataRange() != null) {
+                SetuConsentResponse.DataRange consentDataRange = consentDetails.getDetail().getDataRange();
+                log.info("Consent dataRange - from: {}, to: {}", consentDataRange.getFrom(), consentDataRange.getTo());
+                fromDate = LocalDate.parse(consentDataRange.getFrom().substring(0, 10)); // Extract date part
+                LocalDate consentToDate = LocalDate.parse(consentDataRange.getTo().substring(0, 10));
+                // Use the earlier of: consent's to date or yesterday (to avoid timezone issues)
+                LocalDate yesterday = LocalDate.now().minusDays(1);
+                toDate = consentToDate.isBefore(yesterday) ? consentToDate : yesterday;
+                log.info("Using consent data range: {} to {} (consent to: {})", fromDate, toDate, consentToDate);
+            } else {
+                // Fallback to default range
+                toDate = LocalDate.now().minusDays(1); // Use yesterday
+                fromDate = account.getLastSyncedAt() != null
+                        ? LocalDate.ofInstant(account.getLastSyncedAt(), java.time.ZoneId.systemDefault())
+                        : toDate.minusMonths(setuConfig.getDataFetchMonths());
+                log.warn("Consent data range not available, using default: {} to {}", fromDate, toDate);
+            }
 
             syncHistory.setDataFromDate(fromDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
             syncHistory.setDataToDate(toDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
@@ -165,6 +200,45 @@ public class BankConnectionService {
 
             // Fetch data (in production, this would be async via webhook)
             SetuFIDataResponse dataResponse = setuService.fetchSessionData(sessionResponse.getId());
+
+            // Debug logging
+            log.info("Data session response - status: {}, fips count: {}",
+                    dataResponse.getStatus(),
+                    dataResponse.getFips() != null ? dataResponse.getFips().size() : 0);
+
+            if (dataResponse.getFips() != null) {
+                for (SetuFIDataResponse.FIPData fip : dataResponse.getFips()) {
+                    log.info("FIP: {}, accounts count: {}",
+                            fip.getFipId(),
+                            fip.getAccounts() != null ? fip.getAccounts().size() : 0);
+                    if (fip.getAccounts() != null) {
+                        for (SetuFIDataResponse.AccountData acc : fip.getAccounts()) {
+                            log.info("Account: {}, fiType: {}, has data: {}",
+                                    acc.getMaskedAccNumber(),
+                                    acc.getFiType(),
+                                    acc.getData() != null);
+                            if (acc.getData() != null) {
+                                boolean hasAccountInfo = acc.getData().getAccount() != null;
+                                boolean hasAccountTxns = hasAccountInfo && acc.getData().getAccount().getTransactions() != null;
+                                boolean hasDataTxns = acc.getData().getTransactions() != null;
+                                log.info("  Has account info: {}, has account.transactions: {}, has data.transactions: {}",
+                                        hasAccountInfo, hasAccountTxns, hasDataTxns);
+                                if (hasAccountTxns) {
+                                    log.info("  Transaction list (from account): {}",
+                                            acc.getData().getAccount().getTransactions().getTransaction() != null
+                                                    ? acc.getData().getAccount().getTransactions().getTransaction().size()
+                                                    : "null");
+                                } else if (hasDataTxns) {
+                                    log.info("  Transaction list (from data): {}",
+                                            acc.getData().getTransactions().getTransaction() != null
+                                                    ? acc.getData().getTransactions().getTransaction().size()
+                                                    : "null");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             // Process and save transactions
             SyncResult result = processAndSaveTransactionsWithCount(dataResponse, account);
@@ -420,14 +494,23 @@ public class BankConnectionService {
                     if (accInfo.getHolder() != null) {
                         account.setAccountHolderName(accInfo.getHolder().getName());
                     }
+
+                    // Process and save account holder profile data
+                    processAccountHolders(accInfo, account);
                 }
 
-                // Process transactions
-                if (accData.getData() != null &&
-                    accData.getData().getTransactions() != null &&
-                    accData.getData().getTransactions().getTransaction() != null) {
+                // Process transactions - they are inside account.transactions (not data.transactions)
+                SetuFIDataResponse.TransactionList txnList = null;
+                if (accData.getData() != null && accData.getData().getAccount() != null) {
+                    txnList = accData.getData().getAccount().getTransactions();
+                }
+                // Fallback to data.transactions for backward compatibility
+                if (txnList == null && accData.getData() != null) {
+                    txnList = accData.getData().getTransactions();
+                }
 
-                    List<Transaction> transactions = accData.getData().getTransactions().getTransaction();
+                if (txnList != null && txnList.getTransaction() != null) {
+                    List<Transaction> transactions = txnList.getTransaction();
                     result.fetched += transactions.size();
 
                     for (Transaction txn : transactions) {
@@ -441,6 +524,7 @@ public class BankConnectionService {
 
                         TransactionEntity entity = transactionMapper.mapFromAA(
                                 txn, account.getId(), account.getProfileId());
+                        entity.setUserId(account.getUserId());
                         transactionRepository.save(entity);
                         result.saved++;
                     }
@@ -449,6 +533,51 @@ public class BankConnectionService {
         }
 
         return result;
+    }
+
+    /**
+     * Process and save account holder profile data from Setu response.
+     */
+    private void processAccountHolders(SetuFIDataResponse.AccountInfo accInfo, BankAccount account) {
+        if (accInfo.getProfile() == null || accInfo.getProfile().getHolders() == null) {
+            return;
+        }
+
+        SetuFIDataResponse.HoldersInfo holdersInfo = accInfo.getProfile().getHolders();
+        String holderType = holdersInfo.getType(); // SINGLE or JOINT
+
+        if (holdersInfo.getHolder() == null) {
+            return;
+        }
+
+        // Delete existing holders for this account (to handle updates)
+        accountHolderRepository.deleteByBankAccountId(account.getId());
+
+        for (SetuFIDataResponse.HolderDetail holder : holdersInfo.getHolder()) {
+            AccountHolderEntity holderEntity = new AccountHolderEntity();
+            holderEntity.setUserId(account.getUserId());
+            holderEntity.setBankAccountId(account.getId());
+            holderEntity.setHolderType(holderType);
+            holderEntity.setName(holder.getName());
+            holderEntity.setMobile(holder.getMobile());
+            holderEntity.setEmail(holder.getEmail());
+            holderEntity.setPan(holder.getPan());
+            holderEntity.setAddress(holder.getAddress());
+            holderEntity.setNominee(holder.getNominee());
+            holderEntity.setCkycCompliance(holder.getCkycCompliance());
+
+            // Parse DOB if present
+            if (holder.getDob() != null && !holder.getDob().isEmpty()) {
+                try {
+                    holderEntity.setDob(LocalDate.parse(holder.getDob()));
+                } catch (Exception e) {
+                    log.warn("Could not parse DOB: {}", holder.getDob());
+                }
+            }
+
+            accountHolderRepository.save(holderEntity);
+            log.debug("Saved account holder: {} for account: {}", holder.getName(), account.getId());
+        }
     }
 
     /**

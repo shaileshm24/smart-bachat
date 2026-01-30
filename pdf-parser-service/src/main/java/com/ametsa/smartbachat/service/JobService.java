@@ -3,6 +3,7 @@ package com.ametsa.smartbachat.service;
 import com.ametsa.smartbachat.dto.StartResponseDto;
 import com.ametsa.smartbachat.entity.StatementMetadata;
 import com.ametsa.smartbachat.repository.StatementMetadataRepository;
+import com.ametsa.smartbachat.security.SecurityUtils;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
@@ -21,17 +22,21 @@ public class JobService {
 
     private final StatementMetadataRepository metadataRepository;
     private final Publisher publisher;
+    private final SecurityUtils securityUtils;
     private final Gson gson = new Gson();
 
-    public JobService(StatementMetadataRepository metadataRepository, Publisher publisher) {
+    public JobService(StatementMetadataRepository metadataRepository, Publisher publisher, SecurityUtils securityUtils) {
         this.metadataRepository = metadataRepository;
         this.publisher = publisher;
+        this.securityUtils = securityUtils;
     }
 
     public StartResponseDto startJob(String uploadId, String objectName, UUID profileId, String filename) throws Exception {
+        UUID userId = securityUtils.requireCurrentUserId();
         UUID jobId = UUID.randomUUID();
             StatementMetadata meta = new StatementMetadata();
             meta.setId(jobId);
+            meta.setUserId(userId);
             meta.setUploadId(uploadId);
             meta.setObjectPath(objectName);
             meta.setProfileId(profileId);

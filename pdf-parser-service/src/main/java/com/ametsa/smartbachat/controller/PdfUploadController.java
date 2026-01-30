@@ -100,7 +100,8 @@ public class PdfUploadController {
 
         String filename = file.getOriginalFilename();
 
-        // Get profile ID from authenticated user
+        // Get user ID and profile ID from authenticated user
+        UUID userId = principal.getUserId();
         UUID profileId = getProfileId(principal);
 
         // Save file temporarily to local filesystem
@@ -113,7 +114,7 @@ public class PdfUploadController {
             file.transferTo(tempFile);
 
             // Parse the PDF directly and store transactions to DB
-            UUID jobId = parserWorker.processLocalFile(tempFilePath, profileId, filename, password);
+            UUID jobId = parserWorker.processLocalFile(tempFilePath, userId, profileId, filename, password);
 
             return ResponseEntity.ok(new StartResponseDto(jobId));
         } finally {

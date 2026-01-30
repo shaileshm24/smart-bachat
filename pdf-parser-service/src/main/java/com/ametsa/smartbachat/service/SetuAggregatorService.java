@@ -14,7 +14,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +71,18 @@ public class SetuAggregatorService {
      * Get consent status by consent ID.
      */
     public SetuConsentResponse getConsentStatus(String consentId) {
-        HttpRequest httpRequest = newHttpRequestBuilder("/v2/consents/" + consentId)
+        return getConsentStatus(consentId, false);
+    }
+
+    /**
+     * Get consent status by consent ID with optional expanded details.
+     */
+    public SetuConsentResponse getConsentStatus(String consentId, boolean expanded) {
+        String path = "/v2/consents/" + consentId;
+        if (expanded) {
+            path += "?expanded=true";
+        }
+        HttpRequest httpRequest = newHttpRequestBuilder(path)
                 .GET()
                 .build();
 
@@ -83,17 +93,37 @@ public class SetuAggregatorService {
      * Create a data session to fetch financial data.
      */
     public SetuDataSessionResponse createDataSession(String consentId, LocalDate fromDate, LocalDate toDate) {
-        
+
+        // Ensure fromDate is before toDate
+        if (fromDate.isAfter(toDate)) {
+            log.warn("fromDate {} is after toDate {}, swapping dates", fromDate, toDate);
+            LocalDate temp = fromDate;
+            fromDate = toDate;
+            toDate = temp;
+        }
+
         SetuDataSessionRequest request = new SetuDataSessionRequest();
         request.setConsentId(consentId);
         request.setFormat("json");
-        
+
         SetuDataSessionRequest.DataRange dataRange = new SetuDataSessionRequest.DataRange();
-        dataRange.setFrom(fromDate.atStartOfDay().format(ISO_DATE_FORMAT));
-        dataRange.setTo(toDate.atTime(LocalTime.MAX).format(ISO_DATE_FORMAT));
+        // Use consistent time format: start of day for from, end of day for to
+        String fromDateStr = fromDate.atStartOfDay().format(ISO_DATE_FORMAT);
+        String toDateStr = toDate.atTime(23, 59, 59, 999000000).format(ISO_DATE_FORMAT);
+        dataRange.setFrom(fromDateStr);
+        dataRange.setTo(toDateStr);
         request.setDataRange(dataRange);
 
-        log.info("Creating data session for consent: {}", consentId);
+        log.info("Creating data session for consent: {} with range from={} to={}", consentId, fromDateStr, toDateStr);
+
+        // Log the request body for debugging
+        try {
+            String requestJson = objectMapper.writeValueAsString(request);
+            log.info("Data session request body: {}", requestJson);
+        } catch (Exception e) {
+            log.warn("Could not log request body", e);
+        }
+
         HttpRequest httpRequest = newHttpRequestBuilder("/v2/sessions")
                 .header("Content-Type", "application/json")
                 .POST(buildRequestBody(request))
@@ -104,13 +134,69 @@ public class SetuAggregatorService {
 
     /**
      * Fetch financial data from a completed session.
+     * Polls until the session is COMPLETED or times out.
      */
     public SetuFIDataResponse fetchSessionData(String sessionId) {
-        log.info("Fetching data for session: {}", sessionId);
+        return fetchSessionDataWithPolling(sessionId, 30, 2000); // 30 attempts, 2 seconds apart = 60 seconds max
+    }
+
+    /**
+     * Fetch financial data with polling for session completion.
+     */
+    public SetuFIDataResponse fetchSessionDataWithPolling(String sessionId, int maxAttempts, long pollIntervalMs) {
+        log.info("Fetching data for session: {} (will poll up to {} times)", sessionId, maxAttempts);
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            HttpRequest httpRequest = newHttpRequestBuilder("/v2/sessions/" + sessionId)
+                    .GET()
+                    .build();
+
+            SetuFIDataResponse response = sendRequest(httpRequest, SetuFIDataResponse.class, "fetch session data");
+
+            String status = response.getStatus();
+            log.info("Session {} status: {} (attempt {}/{})", sessionId, status, attempt, maxAttempts);
+
+            if ("COMPLETED".equalsIgnoreCase(status) || "PARTIAL".equalsIgnoreCase(status)) {
+                log.info("Session {} is ready, returning data", sessionId);
+                // Log the raw response for debugging and write to file
+                HttpRequest rawRequest = newHttpRequestBuilder("/v2/sessions/" + sessionId)
+                        .GET()
+                        .build();
+                try {
+                    HttpResponse<String> rawResponse = httpClient.send(rawRequest, HttpResponse.BodyHandlers.ofString());
+                    log.info("Session {} COMPLETED raw response: {}", sessionId, rawResponse.body());
+                    // Write to file for analysis
+                    java.nio.file.Files.writeString(
+                            java.nio.file.Path.of("/tmp/setu_session_" + sessionId + ".json"),
+                            rawResponse.body());
+                    log.info("Wrote raw response to /tmp/setu_session_{}.json", sessionId);
+                } catch (Exception e) {
+                    log.warn("Could not log raw response", e);
+                }
+                return response;
+            } else if ("FAILED".equalsIgnoreCase(status) || "EXPIRED".equalsIgnoreCase(status)) {
+                log.error("Session {} failed with status: {}", sessionId, status);
+                return response; // Return as-is, let caller handle
+            }
+
+            // Still PENDING, wait and retry
+            if (attempt < maxAttempts) {
+                log.debug("Session {} still pending, waiting {}ms before retry", sessionId, pollIntervalMs);
+                try {
+                    Thread.sleep(pollIntervalMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Polling interrupted for session {}", sessionId);
+                    return response;
+                }
+            }
+        }
+
+        log.warn("Session {} did not complete within {} attempts", sessionId, maxAttempts);
+        // Return the last response (still PENDING)
         HttpRequest httpRequest = newHttpRequestBuilder("/v2/sessions/" + sessionId)
                 .GET()
                 .build();
-
         return sendRequest(httpRequest, SetuFIDataResponse.class, "fetch session data");
     }
 
@@ -132,7 +218,7 @@ public class SetuAggregatorService {
         // Data range
         SetuConsentRequest.DataRange dataRange = new SetuConsentRequest.DataRange();
         dataRange.setFrom(fromDate.atStartOfDay().format(ISO_DATE_FORMAT));
-        dataRange.setTo(toDate.atTime(LocalTime.MAX).format(ISO_DATE_FORMAT));
+        dataRange.setTo(toDate.atTime(23, 59, 59, 999000000).format(ISO_DATE_FORMAT));
         request.setDataRange(dataRange);
 
         // Context (optional metadata)
@@ -207,6 +293,11 @@ public class SetuAggregatorService {
 
                 if (statusCode >= 200 && statusCode < 300) {
                     if (responseType == Void.class) return null;
+                    log.debug("[Setu] Raw response for {}: {}", action, response.body());
+                    // Log raw response for session data fetches
+                    if (action.contains("session data")) {
+                        log.info("[Setu] Session data raw response: {}", response.body());
+                    }
                     return objectMapper.readValue(response.body(), responseType);
                 } else if (RETRYABLE_STATUS_CODES.contains(statusCode) && attempt < MAX_RETRIES) {
                     log.warn("[Setu] Retryable error for {} (attempt {}/{}): {} - {}",

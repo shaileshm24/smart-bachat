@@ -22,8 +22,8 @@ public class SetuConfig {
     // FI Types to request (comma-separated)
     private String fiTypes = "DEPOSIT";
 
-    // VUA suffix for mobile number (e.g., "@setu-aa")
-    private String vuaSuffix = "@setu-aa";
+    // VUA suffix for mobile number - use a valid AA handle like @onemoney or @anumati
+    private String vuaSuffix = "@onemoney";
 
     // Getters and Setters
     public String getBaseUrl() { return baseUrl; }

@@ -1,11 +1,13 @@
 package com.ametsa.smartbachat.dto.setu;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Transaction data from Setu AA FI response.
  * Represents a single bank transaction.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Transaction {
 
     @JsonProperty("txnId")

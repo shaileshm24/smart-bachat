@@ -1,19 +1,29 @@
 package com.ametsa.smartbachat.controller;
 
+import com.ametsa.smartbachat.config.JwtConfig;
 import com.ametsa.smartbachat.dto.BankAccountDto;
 import com.ametsa.smartbachat.dto.BankConnectionRequestDto;
 import com.ametsa.smartbachat.dto.BankConnectionResponseDto;
+import com.ametsa.smartbachat.security.JwtAuthenticationFilter;
+import com.ametsa.smartbachat.security.UserPrincipal;
 import com.ametsa.smartbachat.service.BankConnectionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,7 +32,10 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(BankConnectionController.class)
+@WebMvcTest(controllers = BankConnectionController.class,
+        excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
+                classes = JwtAuthenticationFilter.class))
+@AutoConfigureMockMvc(addFilters = false)
 class BankConnectionControllerIntegrationTest {
 
     @Autowired
@@ -33,6 +46,25 @@ class BankConnectionControllerIntegrationTest {
 
     @MockBean
     private BankConnectionService bankConnectionService;
+
+    @MockBean
+    private JwtConfig jwtConfig;
+
+    private UUID testUserId;
+    private UUID testProfileId;
+    private UserPrincipal testPrincipal;
+
+    @BeforeEach
+    void setUp() {
+        testUserId = UUID.randomUUID();
+        testProfileId = UUID.randomUUID();
+        testPrincipal = new UserPrincipal(testUserId, testProfileId, "test@example.com", Collections.emptyList());
+
+        // Set up security context with test principal
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                testPrincipal, null, Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
 
     @Nested
     @DisplayName("POST /api/v1/bank/connect")
@@ -84,16 +116,15 @@ class BankConnectionControllerIntegrationTest {
 
         @Test
         void shouldReturnAccountsForProfile() throws Exception {
-            UUID profileId = UUID.randomUUID();
             BankAccountDto account = new BankAccountDto();
             account.setId(UUID.randomUUID());
             account.setConsentStatus("ACTIVE");
             account.setBankName("SBI");
 
-            when(bankConnectionService.getAccountsForProfile(profileId)).thenReturn(List.of(account));
+            when(bankConnectionService.getAccountsForProfile(testProfileId)).thenReturn(List.of(account));
 
             mockMvc.perform(get("/api/v1/bank/accounts")
-                            .param("profileId", profileId.toString()))
+                            .principal(new UsernamePasswordAuthenticationToken(testPrincipal, null, Collections.emptyList())))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$[0].consentStatus").value("ACTIVE"))
                     .andExpect(jsonPath("$[0].bankName").value("SBI"));
@@ -101,11 +132,10 @@ class BankConnectionControllerIntegrationTest {
 
         @Test
         void shouldReturnEmptyListForNoAccounts() throws Exception {
-            UUID profileId = UUID.randomUUID();
-            when(bankConnectionService.getAccountsForProfile(profileId)).thenReturn(List.of());
+            when(bankConnectionService.getAccountsForProfile(testProfileId)).thenReturn(List.of());
 
             mockMvc.perform(get("/api/v1/bank/accounts")
-                            .param("profileId", profileId.toString()))
+                            .principal(new UsernamePasswordAuthenticationToken(testPrincipal, null, Collections.emptyList())))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$").isEmpty());

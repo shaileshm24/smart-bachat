@@ -38,6 +38,10 @@ dependencies {
     // Yugabyte / Postgres driver
     implementation 'org.postgresql:postgresql:42.7.2'
 
+    // Database migrations
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
     // Google Cloud (use BOM)
     implementation platform('com.google.cloud:libraries-bom:26.40.0')
     implementation 'com.google.cloud:google-cloud-storage'
@@ -56,6 +60,7 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
 }
 
 tasks.named('test') {

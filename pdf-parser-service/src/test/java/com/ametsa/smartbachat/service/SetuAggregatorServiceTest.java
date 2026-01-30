@@ -221,7 +221,7 @@ class SetuAggregatorServiceTest {
         config.setConsentDurationMonths(12);
         config.setDataFetchMonths(12);
         config.setFiTypes("DEPOSIT");
-        config.setVuaSuffix("@setu-aa");
+        config.setVuaSuffix("@onemoney");
         return config;
     }
 }

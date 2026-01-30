@@ -10,6 +10,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "bank_accounts", indexes = {
+        @Index(name = "idx_bank_account_user", columnList = "user_id"),
         @Index(name = "idx_bank_account_profile", columnList = "profile_id"),
         @Index(name = "idx_bank_account_consent", columnList = "consent_id"),
         @Index(name = "idx_bank_account_status", columnList = "consent_status")
@@ -19,6 +20,10 @@ public class BankAccount {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    // User ID from UAM service (logged-in user)
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
     @Column(name = "profile_id", nullable = false)
     private UUID profileId;
@@ -134,6 +139,8 @@ public class BankAccount {
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
+    public UUID getUserId() { return userId; }
+    public void setUserId(UUID userId) { this.userId = userId; }
     public UUID getProfileId() { return profileId; }
     public void setProfileId(UUID profileId) { this.profileId = profileId; }
     public String getFipId() { return fipId; }

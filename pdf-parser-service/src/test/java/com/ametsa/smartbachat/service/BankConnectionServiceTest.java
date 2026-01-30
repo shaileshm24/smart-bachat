@@ -8,9 +8,11 @@ import com.ametsa.smartbachat.dto.setu.SetuConsentResponse;
 import com.ametsa.smartbachat.dto.setu.SetuDataSessionResponse;
 import com.ametsa.smartbachat.dto.setu.SetuFIDataResponse;
 import com.ametsa.smartbachat.entity.BankAccount;
+import com.ametsa.smartbachat.repository.AccountHolderRepository;
 import com.ametsa.smartbachat.repository.BankAccountRepository;
 import com.ametsa.smartbachat.repository.SyncHistoryRepository;
 import com.ametsa.smartbachat.repository.TransactionRepository;
+import com.ametsa.smartbachat.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,7 +29,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,17 +39,26 @@ class BankConnectionServiceTest {
     @Mock private BankAccountRepository bankAccountRepository;
     @Mock private TransactionRepository transactionRepository;
     @Mock private SyncHistoryRepository syncHistoryRepository;
+    @Mock private AccountHolderRepository accountHolderRepository;
     @Mock private BankTransactionMapper transactionMapper;
+    @Mock private SecurityUtils securityUtils;
 
     private BankConnectionService service;
     private SetuConfig setuConfig;
+    private UUID testUserId;
 
     @BeforeEach
     void setUp() {
         setuConfig = createSetuConfig();
+        testUserId = UUID.randomUUID();
         service = new BankConnectionService(
                 setuService, bankAccountRepository, transactionRepository,
-                syncHistoryRepository, transactionMapper, setuConfig);
+                syncHistoryRepository, accountHolderRepository, transactionMapper,
+                setuConfig, securityUtils);
+
+        // Mock security utils to return test user ID (lenient to avoid UnnecessaryStubbingException)
+        lenient().when(securityUtils.requireCurrentUserId()).thenReturn(testUserId);
+        lenient().when(securityUtils.getCurrentUserId()).thenReturn(java.util.Optional.of(testUserId));
     }
 
     @Nested
@@ -80,6 +91,7 @@ class BankConnectionServiceTest {
             verify(bankAccountRepository).save(captor.capture());
             assertEquals(profileId, captor.getValue().getProfileId());
             assertEquals("consent-123", captor.getValue().getConsentId());
+            assertEquals(testUserId, captor.getValue().getUserId());
         }
     }
 
@@ -98,7 +110,18 @@ class BankConnectionServiceTest {
             SetuFIDataResponse dataResponse = new SetuFIDataResponse();
             dataResponse.setFips(List.of());
 
+            // Mock consent status response with data range
+            SetuConsentResponse consentResponse = new SetuConsentResponse();
+            consentResponse.setStatus("ACTIVE");
+            SetuConsentResponse.ConsentDetail detail = new SetuConsentResponse.ConsentDetail();
+            SetuConsentResponse.DataRange dataRange = new SetuConsentResponse.DataRange();
+            dataRange.setFrom("2024-01-01T00:00:00Z");
+            dataRange.setTo("2025-12-31T00:00:00Z");
+            detail.setDataRange(dataRange);
+            consentResponse.setDetail(detail);
+
             when(bankAccountRepository.findById(accountId)).thenReturn(Optional.of(account));
+            when(setuService.getConsentStatus(anyString(), anyBoolean())).thenReturn(consentResponse);
             when(setuService.createDataSession(anyString(), any(), any())).thenReturn(sessionResponse);
             when(setuService.fetchSessionData(anyString())).thenReturn(dataResponse);
             when(bankAccountRepository.save(any(BankAccount.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -201,7 +224,7 @@ class BankConnectionServiceTest {
         config.setConsentDurationMonths(12);
         config.setDataFetchMonths(12);
         config.setFiTypes("DEPOSIT");
-        config.setVuaSuffix("@setu-aa");
+        config.setVuaSuffix("@onemoney");
         return config;
     }
 }

@@ -101,6 +101,7 @@ public class ParserWorker {
                 List<TransactionEntity> txns = parser.parse(documentText, openingBalancePaisa);
                 for (TransactionEntity t : txns) {
                     t.setStatementId(jobId);
+                    t.setUserId(meta.getUserId());
                     t.setProfileId(meta.getProfileId());
                     t.setCreatedAt(Instant.now());
                     if (t.getId() == null) t.setId(UUID.randomUUID());
@@ -116,6 +117,7 @@ public class ParserWorker {
                     List<TransactionEntity> txns = parser.parse(pageText, openingBalancePaisa);
                     for (TransactionEntity t : txns) {
                         t.setStatementId(jobId);
+                        t.setUserId(meta.getUserId());
                         t.setProfileId(meta.getProfileId());
                         t.setCreatedAt(Instant.now());
                         if (t.getId() == null) t.setId(UUID.randomUUID());
@@ -147,8 +149,8 @@ public class ParserWorker {
      * Process a PDF file from local filesystem directly (without password).
      * Delegates to the password-aware overload with null password.
      */
-    public UUID processLocalFile(String filePath, UUID profileId, String filename) throws Exception {
-        return processLocalFile(filePath, profileId, filename, null);
+    public UUID processLocalFile(String filePath, UUID userId, UUID profileId, String filename) throws Exception {
+        return processLocalFile(filePath, userId, profileId, filename, null);
     }
 
     /**
@@ -156,17 +158,19 @@ public class ParserWorker {
      * Parses the PDF, extracts transactions, and stores them in the database.
      *
      * @param filePath Path to the local PDF file
+     * @param userId User ID from UAM service
      * @param profileId Profile ID for the transactions
      * @param filename Original filename
      * @param password Optional password for encrypted PDFs (can be null)
      * @return UUID of the created statement/job
      */
-    public UUID processLocalFile(String filePath, UUID profileId, String filename, String password) throws Exception {
+    public UUID processLocalFile(String filePath, UUID userId, UUID profileId, String filename, String password) throws Exception {
         UUID jobId = UUID.randomUUID();
 
         // Create metadata entry
         StatementMetadata meta = new StatementMetadata();
         meta.setId(jobId);
+        meta.setUserId(userId);
         meta.setUploadId("LOCAL");
         meta.setObjectPath(filePath);
         meta.setProfileId(profileId);
@@ -215,6 +219,7 @@ public class ParserWorker {
                 List<TransactionEntity> txns = parser.parse(documentText, openingBalancePaisa);
                 for (TransactionEntity t : txns) {
                     t.setStatementId(jobId);
+                    t.setUserId(userId);
                     t.setProfileId(profileId);
                     t.setCreatedAt(Instant.now());
                     if (t.getId() == null) t.setId(UUID.randomUUID());
@@ -231,6 +236,7 @@ public class ParserWorker {
                     List<TransactionEntity> txns = parser.parse(pageText, openingBalancePaisa);
                     for (TransactionEntity t : txns) {
                         t.setStatementId(jobId);
+                        t.setUserId(userId);
                         t.setProfileId(profileId);
                         t.setCreatedAt(Instant.now());
                         if (t.getId() == null) t.setId(UUID.randomUUID());

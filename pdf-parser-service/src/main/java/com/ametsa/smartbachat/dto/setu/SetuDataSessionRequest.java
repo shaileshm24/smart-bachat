@@ -18,7 +18,10 @@ public class SetuDataSessionRequest {
     private String format; // json or xml
 
     public static class DataRange {
+        @JsonProperty("from")
         private String from; // ISO date
+
+        @JsonProperty("to")
         private String to;
 
         public String getFrom() { return from; }

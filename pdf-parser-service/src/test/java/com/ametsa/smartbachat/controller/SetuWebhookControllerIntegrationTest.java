@@ -1,15 +1,20 @@
 package com.ametsa.smartbachat.controller;
 
+import com.ametsa.smartbachat.config.JwtConfig;
 import com.ametsa.smartbachat.config.SetuConfig;
 import com.ametsa.smartbachat.dto.setu.SetuWebhookPayload;
+import com.ametsa.smartbachat.security.JwtAuthenticationFilter;
 import com.ametsa.smartbachat.service.BankConnectionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -18,7 +23,10 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(SetuWebhookController.class)
+@WebMvcTest(controllers = SetuWebhookController.class,
+        excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
+                classes = JwtAuthenticationFilter.class))
+@AutoConfigureMockMvc(addFilters = false)
 class SetuWebhookControllerIntegrationTest {
 
     @Autowired
@@ -32,6 +40,9 @@ class SetuWebhookControllerIntegrationTest {
 
     @MockBean
     private SetuConfig setuConfig;
+
+    @MockBean
+    private JwtConfig jwtConfig;
 
     @Nested
     @DisplayName("POST /api/v1/webhooks/setu")
