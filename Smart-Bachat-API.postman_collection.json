@@ -1126,6 +1126,49 @@
               }
             }
           ]
+        },
+        {
+          "name": "Dashboard",
+          "description": "Dashboard API for aggregated home screen data",
+          "item": [
+            {
+              "name": "Get Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pdf_parser_base_url}}/api/v1/dashboard",
+                  "host": ["{{pdf_parser_base_url}}"],
+                  "path": ["api", "v1", "dashboard"]
+                },
+                "description": "Get aggregated dashboard data including:\n- Total savings across all goals\n- Motivational nudge message\n- Balance summary across all connected accounts\n- Savings goal progress summary\n- Gamification data (streaks, badges, challenges)\n- Month's financial forecast\n- Active alerts and reminders\n- Recent transactions (last 5)"
+              },
+              "response": [
+                {
+                  "name": "Dashboard Response Example",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{pdf_parser_base_url}}/api/v1/dashboard",
+                      "host": ["{{pdf_parser_base_url}}"],
+                      "path": ["api", "v1", "dashboard"]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"totalSavings\": 12500.00,\n  \"nudge\": {\n    \"title\": \"Great job! 🎉\",\n    \"message\": \"You're saving 15% more than last month!\",\n    \"type\": \"POSITIVE\",\n    \"actionType\": null\n  },\n  \"balance\": {\n    \"totalBalance\": 45800.00,\n    \"accountCount\": 2,\n    \"lastSyncedAt\": \"2026-02-08T10:30:00Z\",\n    \"currency\": \"INR\"\n  },\n  \"savingsGoal\": {\n    \"totalTarget\": 50000.00,\n    \"totalSaved\": 12500.00,\n    \"progressPercent\": 25.0,\n    \"suggestedMonthlySaving\": 12500.00,\n    \"activeGoals\": 3,\n    \"goalsOnTrack\": 2,\n    \"goalsBehindSchedule\": 1\n  },\n  \"gamification\": {\n    \"currentStreak\": 0,\n    \"longestStreak\": 0,\n    \"recentBadges\": [],\n    \"activeChallenges\": [],\n    \"level\": 1,\n    \"xp\": 0,\n    \"totalBadges\": 0\n  },\n  \"forecast\": {\n    \"projectedExpense\": 45000.00,\n    \"projectedIncome\": 75000.00,\n    \"projectedSavings\": 30000.00,\n    \"trend\": \"UP\",\n    \"changePercent\": 12.5,\n    \"avgMonthlyExpense\": 40000.00,\n    \"avgMonthlyIncome\": 70000.00,\n    \"savingsRate\": 40.0\n  },\n  \"alerts\": [\n    {\n      \"id\": \"goals-behind\",\n      \"type\": \"GOAL_REMINDER\",\n      \"title\": \"Goals Need Attention\",\n      \"message\": \"1 goal(s) are behind schedule. Consider adding contributions.\",\n      \"dueDate\": null,\n      \"amount\": null,\n      \"priority\": \"MEDIUM\",\n      \"isRead\": false,\n      \"actionType\": \"VIEW_GOALS\",\n      \"relatedEntityId\": null\n    }\n  ],\n  \"recentTransactions\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"txnDate\": \"2026-02-08\",\n      \"amount\": 450.00,\n      \"direction\": \"DEBIT\",\n      \"currency\": \"INR\",\n      \"description\": \"SWIGGY ORDER 12345\",\n      \"merchant\": \"Swiggy\",\n      \"category\": \"FOOD\",\n      \"subCategory\": \"FOOD_DELIVERY\"\n    }\n  ],\n  \"generatedAt\": \"2026-02-08T12:00:00Z\"\n}"
+                }
+              ]
+            }
+          ]
         }
       ]
     },

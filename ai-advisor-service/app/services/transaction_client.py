@@ -8,11 +8,11 @@ from app.models.schemas import TransactionData
 
 
 class TransactionClient:
-    """Client for fetching transaction data from pdf-parser-service."""
-    
+    """Client for fetching transaction data from bachat-core-service."""
+
     def __init__(self):
         self.settings = get_settings()
-        self.base_url = self.settings.pdf_parser_service_url
+        self.base_url = self.settings.bachat_core_service_url
     
     async def get_transactions(
         self,

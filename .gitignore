@@ -3,14 +3,19 @@
 
 # Gradle build output
 /build/
-/pdf-parser-service/build/
+*/build/
 /.gradle/
+*/.gradle/
 
 # IDE metadata
 /.idea/
 *.iml
 *.ipr
 *.iws
+.project
+.classpath
+.settings/
+.vscode/
 
 # OS files
 .DS_Store
@@ -28,3 +33,13 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+*.jar
+*.war

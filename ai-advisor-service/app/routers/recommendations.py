@@ -11,6 +11,7 @@ from app.services.transaction_client import transaction_client
 from app.services.spending_analyzer import spending_analyzer, DISCRETIONARY_CATEGORIES
 from app.services.savings_recommender import savings_recommender
 from app.services.openai_advisor import openai_advisor, AIInsightResponse
+from app.services.forecast_service import forecast_service, ForecastResponse
 from app.config import get_settings
 
 router = APIRouter(prefix="/api/advisor", tags=["Recommendations"])
@@ -247,3 +248,42 @@ async def get_ai_goal_advice(
         "recommendation": recommendation,
         "ai_available": openai_advisor.is_available()
     }
+
+
+@router.get("/forecast", response_model=ForecastResponse)
+async def get_forecast(
+    user: UserPrincipal = Depends(require_profile)
+):
+    """
+    Get AI-powered financial forecast for the current month.
+
+    Uses statistical methods and trend analysis to predict:
+    - Projected income for current month
+    - Projected expenses for current month
+    - Projected savings
+    - Trend direction (UP, DOWN, STABLE)
+    - Confidence score
+    - Actionable insights
+
+    The forecast uses:
+    1. Weighted moving average of past 6 months (recent months weighted more)
+    2. Day-of-month projection for current month data
+    3. Trend analysis for adjustment
+    """
+    end_date = date.today()
+    start_date = end_date - timedelta(days=180)  # 6 months of data
+
+    # Fetch transactions
+    transactions = await transaction_client.get_transactions(
+        token=user.token,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    # Generate forecast
+    forecast = forecast_service.generate_forecast(
+        transactions=transactions,
+        profile_id=str(user.profile_id)
+    )
+
+    return forecast
