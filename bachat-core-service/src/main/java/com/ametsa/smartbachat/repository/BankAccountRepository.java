@@ -16,6 +16,7 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, UUID> 
      */
     List<BankAccount> findByProfileIdOrderByCreatedAtDesc(UUID profileId);
 
+    List<BankAccount> findByUserId(UUID userId);
     /**
      * Find all active bank accounts for a profile.
      */

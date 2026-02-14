@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.routers import spending, recommendations
+from app.security import ApiException, ApiErrorResponse
 
 settings = get_settings()
 
@@ -22,6 +24,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(ApiException)
+async def api_exception_handler(request: Request, exc: ApiException):
+    """Handle ApiException and return structured JSON response."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.error_response
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """Handle unexpected exceptions with structured error response."""
+    error_response = ApiErrorResponse.internal_error(path=str(request.url.path))
+    return JSONResponse(
+        status_code=500,
+        content=error_response
+    )
 
 # Include routers
 app.include_router(spending.router)

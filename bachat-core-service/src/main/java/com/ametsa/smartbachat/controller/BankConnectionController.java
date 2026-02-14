@@ -162,16 +162,16 @@ public class BankConnectionController {
     /**
      * Get transactions for a specific bank account.
      */
-    @GetMapping("/accounts/{accountId}/transactions")
+    @GetMapping("/accounts/{userId}/transactions")
     public ResponseEntity<?> getTransactions(
-            @PathVariable UUID accountId,
+            @PathVariable UUID userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         try {
             var transactions = bankConnectionService.getTransactionsForAccount(
-                    accountId, fromDate, toDate, page, size);
+                    userId, fromDate, toDate, page, size);
             return ResponseEntity.ok(transactions);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(java.util.Map.of(

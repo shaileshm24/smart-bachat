@@ -17,7 +17,7 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     /**
      * Find transactions by bank account ID.
      */
-    List<TransactionEntity> findByBankAccountIdOrderByTxnDateDescCreatedAtDesc(UUID bankAccountId);
+    List<TransactionEntity> findByUserIdOrderByTxnDateDescCreatedAtDesc(UUID userId);
 
     /**
      * Find transactions by profile ID.
@@ -31,10 +31,10 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
             UUID profileId, LocalDate startDate, LocalDate endDate);
 
     /**
-     * Find transactions by bank account and date range.
+     * Find transactions by user id and date range.
      */
     List<TransactionEntity> findByBankAccountIdAndTxnDateBetweenOrderByTxnDateDesc(
-            UUID bankAccountId, LocalDate startDate, LocalDate endDate);
+            UUID userId, LocalDate startDate, LocalDate endDate);
 
     /**
      * Find transactions by category.
@@ -98,5 +98,51 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     List<TransactionEntity> findRecentByProfileId(
             @Param("profileId") UUID profileId,
             @Param("limit") int limit);
+
+    /**
+     * Find transactions by user ID with date range.
+     */
+    List<TransactionEntity> findByUserIdAndTxnDateBetweenOrderByTxnDateDesc(
+            UUID userId, LocalDate startDate, LocalDate endDate);
+
+    /**
+     * Count transactions by user ID with optional filters.
+     */
+    @Query(value = "SELECT COUNT(*) FROM transactions t WHERE t.user_id = :userId " +
+           "AND (:startDate IS NULL OR t.txn_date >= :startDate) " +
+           "AND (:endDate IS NULL OR t.txn_date <= :endDate) " +
+           "AND (:category IS NULL OR t.category = :category) " +
+           "AND (:direction IS NULL OR t.direction = :direction) " +
+           "AND (:search IS NULL OR LOWER(CAST(t.description AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(CAST(t.merchant AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%')))",
+           nativeQuery = true)
+    long countByUserIdWithFilters(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("category") String category,
+            @Param("direction") String direction,
+            @Param("search") String search);
+
+    /**
+     * Find transactions by user ID with optional filters and pagination.
+     */
+    @Query(value = "SELECT * FROM transactions t WHERE t.user_id = :userId " +
+           "AND (:startDate IS NULL OR t.txn_date >= :startDate) " +
+           "AND (:endDate IS NULL OR t.txn_date <= :endDate) " +
+           "AND (:category IS NULL OR t.category = :category) " +
+           "AND (:direction IS NULL OR t.direction = :direction) " +
+           "AND (:search IS NULL OR LOWER(CAST(t.description AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(CAST(t.merchant AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY t.txn_date DESC, t.created_at DESC",
+           nativeQuery = true)
+    List<TransactionEntity> findByUserIdWithFilters(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("category") String category,
+            @Param("direction") String direction,
+            @Param("search") String search,
+            org.springframework.data.domain.Pageable pageable);
 }
 

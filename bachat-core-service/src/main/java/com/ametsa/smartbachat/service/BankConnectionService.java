@@ -868,20 +868,28 @@ public class BankConnectionService {
      * Get transactions for a bank account with optional date filtering.
      */
     public List<TransactionEntity> getTransactionsForAccount(
-            UUID accountId, String fromDateStr, String toDateStr, int page, int size) {
+            UUID userId, String fromDateStr, String toDateStr, int page, int size) {
 
+        log.info("Calling getTransactionsForAccount with userId: {}, fromDateStr: {}, toDateStr: {}, page: {}, size: {}",
+                userId, fromDateStr, toDateStr, page, size);
         // Verify account exists
-        bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Bank account not found: " + accountId));
+        List<BankAccount> accounts = bankAccountRepository.findByUserId(userId);
 
+        if(accounts.isEmpty()){
+            new RuntimeException("Bank account not found: " + userId);
+        }
         if (fromDateStr != null && toDateStr != null) {
             LocalDate fromDate = LocalDate.parse(fromDateStr);
             LocalDate toDate = LocalDate.parse(toDateStr);
-            return transactionRepository.findByBankAccountIdAndTxnDateBetweenOrderByTxnDateDesc(
-                    accountId, fromDate, toDate);
+            List<TransactionEntity> transactions = transactionRepository.findByBankAccountIdAndTxnDateBetweenOrderByTxnDateDesc(
+                    userId, fromDate, toDate);
+            log.info("Transactions", List.of(transactions));
+            return  transactions;
         }
 
-        return transactionRepository.findByBankAccountIdOrderByTxnDateDescCreatedAtDesc(accountId);
+        List<TransactionEntity> transactions = transactionRepository.findByUserIdOrderByTxnDateDescCreatedAtDesc(userId);
+        log.info("Transactions", transactions.size());
+        return transactions;
     }
 
     /**

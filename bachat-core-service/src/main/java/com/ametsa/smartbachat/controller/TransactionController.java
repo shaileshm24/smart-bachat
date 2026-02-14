@@ -11,6 +11,9 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,46 +42,45 @@ public class TransactionController {
     }
 
     /**
-     * Get all transactions for the authenticated user's profile.
+     * Get all transactions for the authenticated user.
      * Combines transactions from PDF uploads and bank API connections.
-     * 
+     *
      * @param startDate Optional start date filter (inclusive)
      * @param endDate Optional end date filter (inclusive)
      * @param category Optional category filter
      * @param direction Optional direction filter (CREDIT/DEBIT)
-     * @return List of transactions with summary
+     * @param search Optional search text for description/merchant
+     * @param page Page number (0-based, default: 0)
+     * @param size Page size (default: 50)
+     * @return Paginated list of transactions with summary
      */
     @GetMapping
     public ResponseEntity<TransactionListResponse> getTransactions(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String direction) {
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
 
-        UUID profileId = securityUtils.requireCurrentProfileId();
-        log.info("Fetching transactions for profile: {}, dateRange: {} to {}", profileId, startDate, endDate);
+        UUID userId = securityUtils.requireCurrentUserId();
+        log.info("Fetching transactions for user: {}, dateRange: {} to {}, category: {}, search: {}, page: {}, size: {}",
+                userId, startDate, endDate, category, search, page, size);
 
-        List<TransactionEntity> transactions;
+        // Normalize empty strings to null for query
+        String categoryFilter = (category != null && !category.trim().isEmpty()) ? category.trim() : null;
+        String directionFilter = (direction != null && !direction.trim().isEmpty()) ? direction.trim() : null;
+        String searchFilter = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
-        if (startDate != null && endDate != null) {
-            transactions = transactionRepository.findByProfileIdAndTxnDateBetweenOrderByTxnDateDesc(
-                    profileId, startDate, endDate);
-        } else {
-            transactions = transactionRepository.findByProfileIdOrderByTxnDateDescCreatedAtDesc(profileId);
-        }
+        // Get total count for pagination
+        long totalCount = transactionRepository.countByUserIdWithFilters(
+                userId, startDate, endDate, categoryFilter, directionFilter, searchFilter);
 
-        // Apply additional filters
-        if (category != null && !category.isEmpty()) {
-            transactions = transactions.stream()
-                    .filter(t -> category.equalsIgnoreCase(t.getCategory()))
-                    .collect(Collectors.toList());
-        }
-
-        if (direction != null && !direction.isEmpty()) {
-            transactions = transactions.stream()
-                    .filter(t -> direction.equalsIgnoreCase(t.getDirection()))
-                    .collect(Collectors.toList());
-        }
+        // Get paginated transactions
+        Pageable pageable = PageRequest.of(page, size);
+        List<TransactionEntity> transactions = transactionRepository.findByUserIdWithFilters(
+                userId, startDate, endDate, categoryFilter, directionFilter, searchFilter, pageable);
 
         // Ensure all transactions are categorized
         for (TransactionEntity txn : transactions) {
@@ -90,13 +92,17 @@ public class TransactionController {
                 .map(this::toDto)
                 .collect(Collectors.toList());
 
-        // Calculate summary
+        // Calculate summary (for current page)
         TransactionSummary summary = calculateSummary(transactions);
 
+        // Build response with pagination info
         TransactionListResponse response = new TransactionListResponse();
         response.setTransactions(dtos);
         response.setSummary(summary);
-        response.setTotalCount(dtos.size());
+        response.setTotalCount((int) totalCount);
+        response.setPage(page);
+        response.setSize(size);
+        response.setTotalPages((int) Math.ceil((double) totalCount / size));
 
         return ResponseEntity.ok(response);
     }
@@ -197,6 +203,9 @@ public class TransactionController {
         private List<TransactionDto> transactions;
         private TransactionSummary summary;
         private int totalCount;
+        private int page;
+        private int size;
+        private int totalPages;
 
         public List<TransactionDto> getTransactions() { return transactions; }
         public void setTransactions(List<TransactionDto> transactions) { this.transactions = transactions; }
@@ -204,6 +213,12 @@ public class TransactionController {
         public void setSummary(TransactionSummary summary) { this.summary = summary; }
         public int getTotalCount() { return totalCount; }
         public void setTotalCount(int totalCount) { this.totalCount = totalCount; }
+        public int getPage() { return page; }
+        public void setPage(int page) { this.page = page; }
+        public int getSize() { return size; }
+        public void setSize(int size) { this.size = size; }
+        public int getTotalPages() { return totalPages; }
+        public void setTotalPages(int totalPages) { this.totalPages = totalPages; }
     }
 
     public static class TransactionSummary {
