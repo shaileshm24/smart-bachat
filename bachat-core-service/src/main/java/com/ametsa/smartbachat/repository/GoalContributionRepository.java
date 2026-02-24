@@ -2,6 +2,7 @@ package com.ametsa.smartbachat.repository;
 
 import com.ametsa.smartbachat.entity.GoalContribution;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -67,6 +68,7 @@ public interface GoalContributionRepository extends JpaRepository<GoalContributi
     /**
      * Delete all contributions for a goal.
      */
+    @Modifying
     void deleteByGoalId(UUID goalId);
 
     /**
