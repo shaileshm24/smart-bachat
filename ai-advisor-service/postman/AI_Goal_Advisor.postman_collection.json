@@ -1,0 +1,140 @@
+{
+  "info": {
+    "name": "AI Goal Advisor - Fully AI-Powered",
+    "description": "Collection for AI-Powered Goal Advisory Service. All endpoints use OpenAI for intelligent analysis - NO manual calculations!",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8001", "type": "string"},
+    {"key": "authToken", "value": "your-jwt-token-here", "type": "string"},
+    {"key": "goalId", "value": "your-goal-uuid-here", "type": "string"}
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{authToken}}", "type": "string"}]
+  },
+  "item": [
+    {
+      "name": "🤖 AI Goal Advisor",
+      "description": "All endpoints powered by OpenAI - no manual calculations!",
+      "item": [
+        {
+          "name": "1. Get AI Goal Achievement Plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-goals/advice/{{goalId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-goals", "advice", "{{goalId}}"]
+            },
+            "description": "🤖 AI Goal Achievement Advisor\n\nGet an AI-generated plan to achieve a specific goal.\n\nReturns:\n- Achievement probability (0-100%)\n- Recommended monthly savings\n- Specific spending cuts with amounts\n- Step-by-step action plan\n- Risk factors\n- Motivational insights"
+          }
+        },
+        {
+          "name": "2. Get AI Goal Suggestions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-goals/suggestions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-goals", "suggestions"]
+            },
+            "description": "🤖 AI Goal Suggestions\n\nAI analyzes your spending behavior and suggests personalized goals.\n\nReturns goals you should consider with:\n- Why this goal makes sense for YOU\n- How to achieve it\n- Suggested target and timeline"
+          }
+        },
+        {
+          "name": "3. Analyze Transaction Impact",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"category\": \"SHOPPING\",\n  \"description\": \"New headphones from Amazon\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-goals/transaction-impact",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-goals", "transaction-impact"]
+            },
+            "description": "🤖 AI Transaction Impact Analysis\n\nBefore making a purchase, check how it affects your goals!\n\nReturns:\n- AI verdict on the transaction\n- Impact level (HIGH/MEDIUM/LOW)\n- Alternative suggestions\n- Savings opportunity"
+          }
+        },
+        {
+          "name": "4. Get Spending Warnings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-goals/spending-warnings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-goals", "spending-warnings"]
+            },
+            "description": "🤖 AI Spending Warnings\n\nAI identifies unnecessary spending patterns affecting your goals.\n\nDetects: UNNECESSARY, EXCESSIVE, IMPULSE, RECURRING_WASTE"
+          }
+        },
+        {
+          "name": "5. Get Comprehensive AI Advice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-goals/comprehensive-advice",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-goals", "comprehensive-advice"]
+            },
+            "description": "🤖 AI Comprehensive Goal Advice\n\nGet a complete AI-powered financial advisory report.\n\nIncludes:\n- Financial health score (0-100)\n- Overall assessment\n- Individual goal insights\n- Spending analysis\n- Prioritized recommendations\n- Motivational message\n- Next steps"
+          }
+        },
+        {
+          "name": "6. Should I Buy? (AI Advisor)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 15000,\n  \"category\": \"GADGETS\",\n  \"description\": \"New smartwatch\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-goals/should-i-buy",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-goals", "should-i-buy"]
+            },
+            "description": "🤖 AI \"Should I Buy?\" Advisor\n\nThinking of making a purchase? Ask AI first!\n\nReturns:\n- Should you buy it? (YES/NO/MAYBE)\n- How it affects your goals\n- What you could do instead\n- The real cost in terms of goal delays"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Other Endpoints",
+      "item": [
+        {
+          "name": "Get Financial Insights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor/insights",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "advisor", "insights"]
+            }
+          }
+        },
+        {
+          "name": "Get Forecast",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor/forecast",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "advisor", "forecast"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

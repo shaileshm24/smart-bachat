@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.config import get_settings
 from app.models.schemas import (
     TransactionData, SpendingAnalysisResponse, SavingsCapacityResponse,
-    GoalRecommendationRequest
+    GoalRecommendationRequest, GoalData, GoalInsightsResponse, GoalInsight, GoalSuggestion
 )
 
 
@@ -291,6 +291,189 @@ Consider Indian context (mention relevant savings instruments if applicable).
             # No transaction data available
             suggested_monthly = remaining / 12  # Assume 1 year target
             return f"To achieve your {goal.goal_name} goal of ₹{goal.target_amount:,.0f}, consider saving ₹{suggested_monthly:,.0f} monthly. Upload your bank statements to get personalized recommendations."
+
+    async def generate_ai_goal_insights(
+        self,
+        goals: List[GoalData],
+        analysis: SpendingAnalysisResponse,
+        capacity: SavingsCapacityResponse
+    ) -> dict:
+        """Generate AI-powered goal insights and motivational messages."""
+        if not self.is_available():
+            return self._generate_fallback_goal_insights(goals, capacity)
+
+        # Prepare goals summary
+        goals_summary = self._prepare_goals_summary(goals)
+        spending_summary = self._prepare_spending_summary(analysis, [])
+
+        prompt = f"""You are a friendly Indian financial advisor helping a user achieve their savings goals.
+Analyze their goals and spending patterns to provide personalized insights and motivation.
+
+CURRENT GOALS:
+{goals_summary}
+
+FINANCIAL SITUATION:
+- Monthly Income: ₹{analysis.avg_monthly_income:,.0f}
+- Monthly Expenses: ₹{analysis.avg_monthly_expense:,.0f}
+- Savings Rate: {analysis.savings_rate:.1f}%
+- Safe Monthly Savings: ₹{capacity.safe_monthly_savings:,.0f}
+- Discretionary Spending: ₹{capacity.avg_monthly_discretionary_expenses:,.0f}
+
+TOP SPENDING CATEGORIES:
+{spending_summary}
+
+Provide your response as JSON with this structure:
+{{
+    "overall_health_score": 75,
+    "goal_specific_insights": [
+        {{
+            "goal_name": "name of the goal",
+            "insight": "2-3 sentences of personalized advice for this specific goal",
+            "action_items": ["action1", "action2"]
+        }}
+    ],
+    "motivational_message": "An encouraging 2-3 sentence message to motivate the user to save more",
+    "saving_tips": ["tip1", "tip2", "tip3"],
+    "suggested_new_goals": [
+        {{
+            "goal_type": "TRAVEL/GADGET/EMERGENCY/EDUCATION/etc",
+            "name": "suggested goal name",
+            "reason": "why this goal makes sense based on their spending"
+        }}
+    ]
+}}
+
+For overall_health_score (0-100), consider:
+- Goals progress (are they on track?)
+- Savings rate (higher is better)
+- Discretionary spending ratio
+- Number of active goals vs completed
+- 80+ = Excellent, 60-79 = Good, 40-59 = Needs Improvement, <40 = Critical
+
+Focus on:
+1. Specific, actionable advice for each goal
+2. Encouraging tone - celebrate progress
+3. Indian context (mention RDs, SIPs, etc. where relevant)
+4. Realistic suggestions based on their savings capacity
+"""
+
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info("Calling OpenAI for goal insights...")
+
+            response = await self.client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=[
+                    {"role": "system", "content": "You are an expert Indian financial advisor. Provide warm, encouraging advice that motivates users to save. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=self.settings.openai_temperature,
+                max_tokens=1000,
+                response_format={"type": "json_object"}
+            )
+
+            result = json.loads(response.choices[0].message.content)
+            logger.info(f"OpenAI response received. Keys: {list(result.keys())}")
+            logger.info(f"OpenAI overall_health_score: {result.get('overall_health_score')}")
+            return result
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"OpenAI API error: {type(e).__name__}: {e}")
+            return self._generate_fallback_goal_insights(goals, capacity)
+
+    def _prepare_goals_summary(self, goals: List[GoalData]) -> str:
+        """Prepare goals summary for the prompt."""
+        if not goals:
+            return "No active goals set."
+
+        lines = []
+        for g in goals:
+            if g.status == "ACTIVE":
+                status = "On Track ✓" if g.is_on_track else "Needs Attention ⚠"
+                deadline_str = f", Deadline: {g.deadline}" if g.deadline else ""
+                lines.append(
+                    f"- {g.name} ({g.goal_type}): ₹{g.current_amount:,.0f}/₹{g.target_amount:,.0f} "
+                    f"({g.progress_percent:.0f}% complete){deadline_str} - {status}"
+                )
+        return "\n".join(lines) if lines else "No active goals."
+
+    def _generate_fallback_goal_insights(
+        self, goals: List[GoalData], capacity: SavingsCapacityResponse
+    ) -> dict:
+        """Generate rule-based goal insights when OpenAI is unavailable."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning("Using fallback goal insights (OpenAI unavailable or failed)")
+
+        goal_insights = []
+        active_goals = [g for g in goals if g.status == "ACTIVE"]
+
+        for g in active_goals:
+            if g.progress_percent >= 75:
+                insight = f"You're almost there! Just ₹{g.remaining_amount:,.0f} more to reach your {g.name} goal."
+                actions = ["Make one final push!", "Consider a bonus contribution"]
+            elif g.is_on_track:
+                insight = f"Great progress on {g.name}! Keep up the consistent savings."
+                actions = ["Maintain your current pace", "Set up auto-debit for consistency"]
+            else:
+                monthly_needed = g.remaining_amount / max(1, (g.days_remaining or 365) / 30)
+                insight = f"Your {g.name} goal needs attention. Try to save ₹{monthly_needed:,.0f}/month."
+                actions = ["Review discretionary spending", "Consider extending deadline"]
+
+            goal_insights.append({
+                "goal_name": g.name,
+                "insight": insight,
+                "action_items": actions
+            })
+
+        # Calculate fallback health score
+        fallback_health_score = self._calculate_fallback_health_score(active_goals, capacity)
+
+        # Motivational message
+        if capacity.current_savings_rate >= 20:
+            motivation = "🌟 You're a savings superstar! Your discipline is building a secure future."
+        elif capacity.current_savings_rate >= 10:
+            motivation = "💪 Good progress! Every rupee saved brings you closer to your dreams."
+        else:
+            motivation = "🎯 Small steps lead to big achievements. Start with saving just ₹500 more this month!"
+
+        return {
+            "overall_health_score": fallback_health_score,
+            "score_source": "fallback",  # Flag to indicate this is not from OpenAI
+            "goal_specific_insights": goal_insights,
+            "motivational_message": motivation,
+            "saving_tips": [
+                "Set up automatic transfers on salary day",
+                "Use the 50-30-20 rule: 50% needs, 30% wants, 20% savings",
+                "Track every expense for a week to find hidden savings"
+            ],
+            "suggested_new_goals": []
+        }
+
+    def _calculate_fallback_health_score(
+        self, active_goals: List[GoalData], capacity: SavingsCapacityResponse
+    ) -> float:
+        """Calculate health score when OpenAI is unavailable."""
+        score = 50.0  # Base score
+
+        # Factor 1: Goals progress (0-25 points)
+        if active_goals:
+            avg_progress = sum(g.progress_percent for g in active_goals) / len(active_goals)
+            score += min(25, avg_progress * 0.25)
+
+        # Factor 2: Goals on track (0-20 points)
+        if active_goals:
+            on_track_ratio = sum(1 for g in active_goals if g.is_on_track) / len(active_goals)
+            score += on_track_ratio * 20
+
+        # Factor 3: Savings rate (0-15 points)
+        if capacity.current_savings_rate > 0:
+            score += min(15, capacity.current_savings_rate * 0.5)
+
+        return max(0, min(100, round(score, 1)))
 
 
 # Singleton instance

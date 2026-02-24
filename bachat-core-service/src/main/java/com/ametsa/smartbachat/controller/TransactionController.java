@@ -11,8 +11,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+
 
 import java.time.LocalDate;
 import java.util.*;
@@ -78,9 +77,9 @@ public class TransactionController {
                 userId, startDate, endDate, categoryFilter, directionFilter, searchFilter);
 
         // Get paginated transactions
-        Pageable pageable = PageRequest.of(page, size);
+        int offsetVal = page * size;
         List<TransactionEntity> transactions = transactionRepository.findByUserIdWithFilters(
-                userId, startDate, endDate, categoryFilter, directionFilter, searchFilter, pageable);
+                userId, startDate, endDate, categoryFilter, directionFilter, searchFilter, size, offsetVal);
 
         // Ensure all transactions are categorized
         for (TransactionEntity txn : transactions) {

@@ -1,0 +1,235 @@
+{
+  "info": {
+    "name": "SmartBachat - Phase 1 Basic Features",
+    "description": "API collection for Phase 1 Basic Features: Budget Templates, Bill Reminders, Monthly Reports, Export Data, Notifications",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Budget Templates",
+      "item": [
+        {
+          "name": "Get All Budget Templates",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/budgets/templates"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"name\": \"50/30/20 Rule\",\n    \"templateType\": \"RULE_50_30_20\",\n    \"description\": \"A popular budgeting method: 50% for needs, 30% for wants, 20% for savings.\",\n    \"categoryAllocations\": [\n      {\"category\": \"ESSENTIALS\", \"percentage\": 50, \"icon\": \"home\", \"color\": \"#4CAF50\"},\n      {\"category\": \"LIFESTYLE\", \"percentage\": 30, \"icon\": \"shopping_bag\", \"color\": \"#2196F3\"},\n      {\"category\": \"SAVINGS\", \"percentage\": 20, \"icon\": \"savings\", \"color\": \"#FF9800\"}\n    ],\n    \"isSystem\": true,\n    \"icon\": \"pie_chart\",\n    \"createdAt\": \"2026-02-14T10:00:00Z\"\n  },\n  {\n    \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"name\": \"Zero-Based Budget\",\n    \"templateType\": \"ZERO_BASED\",\n    \"description\": \"Every rupee has a job. Allocate 100% of income to specific categories.\",\n    \"categoryAllocations\": [\n      {\"category\": \"HOUSING\", \"percentage\": 25, \"icon\": \"home\", \"color\": \"#9C27B0\"},\n      {\"category\": \"FOOD\", \"percentage\": 15, \"icon\": \"restaurant\", \"color\": \"#E91E63\"},\n      {\"category\": \"TRANSPORT\", \"percentage\": 10, \"icon\": \"directions_car\", \"color\": \"#00BCD4\"},\n      {\"category\": \"UTILITIES\", \"percentage\": 10, \"icon\": \"bolt\", \"color\": \"#FFC107\"},\n      {\"category\": \"HEALTHCARE\", \"percentage\": 5, \"icon\": \"local_hospital\", \"color\": \"#F44336\"},\n      {\"category\": \"ENTERTAINMENT\", \"percentage\": 10, \"icon\": \"movie\", \"color\": \"#3F51B5\"},\n      {\"category\": \"SAVINGS\", \"percentage\": 15, \"icon\": \"savings\", \"color\": \"#4CAF50\"},\n      {\"category\": \"MISCELLANEOUS\", \"percentage\": 10, \"icon\": \"more_horiz\", \"color\": \"#607D8B\"}\n    ],\n    \"isSystem\": true,\n    \"icon\": \"calculate\",\n    \"createdAt\": \"2026-02-14T10:00:00Z\"\n  },\n  {\n    \"id\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\",\n    \"name\": \"Aggressive Saver\",\n    \"templateType\": \"AGGRESSIVE_SAVER\",\n    \"description\": \"For those who want to maximize savings. 40% savings, 40% needs, 20% wants.\",\n    \"categoryAllocations\": [\n      {\"category\": \"ESSENTIALS\", \"percentage\": 40, \"icon\": \"home\", \"color\": \"#4CAF50\"},\n      {\"category\": \"LIFESTYLE\", \"percentage\": 20, \"icon\": \"shopping_bag\", \"color\": \"#2196F3\"},\n      {\"category\": \"SAVINGS\", \"percentage\": 40, \"icon\": \"savings\", \"color\": \"#FF9800\"}\n    ],\n    \"isSystem\": true,\n    \"icon\": \"trending_up\",\n    \"createdAt\": \"2026-02-14T10:00:00Z\"\n  },\n  {\n    \"id\": \"d4e5f6a7-b8c9-0123-defa-234567890123\",\n    \"name\": \"Debt Payoff\",\n    \"templateType\": \"DEBT_PAYOFF\",\n    \"description\": \"Focus on paying off debt while maintaining essentials.\",\n    \"categoryAllocations\": [\n      {\"category\": \"ESSENTIALS\", \"percentage\": 50, \"icon\": \"home\", \"color\": \"#4CAF50\"},\n      {\"category\": \"DEBT_PAYMENT\", \"percentage\": 30, \"icon\": \"credit_card\", \"color\": \"#F44336\"},\n      {\"category\": \"LIFESTYLE\", \"percentage\": 10, \"icon\": \"shopping_bag\", \"color\": \"#2196F3\"},\n      {\"category\": \"EMERGENCY_FUND\", \"percentage\": 10, \"icon\": \"shield\", \"color\": \"#FF9800\"}\n    ],\n    \"isSystem\": true,\n    \"icon\": \"credit_score\",\n    \"createdAt\": \"2026-02-14T10:00:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Create Budget from Template",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/budgets",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetMonth\": \"2026-02\",\n  \"totalIncome\": 75000.00,\n  \"templateId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"notes\": \"February budget using 50/30/20 rule\"\n}"
+            }
+          },
+          "response": [{"name": "Success", "code": 201, "body": "{\n  \"id\": \"f1e2d3c4-b5a6-7890-1234-567890abcdef\",\n  \"budgetMonth\": \"2026-02\",\n  \"templateName\": \"50/30/20 Rule\",\n  \"totalIncome\": 75000.00,\n  \"totalBudget\": 75000.00,\n  \"totalSpent\": 12500.00,\n  \"remainingBudget\": 62500.00,\n  \"spentPercent\": 16.67,\n  \"status\": \"ACTIVE\",\n  \"categories\": [{\"category\": \"ESSENTIALS\", \"budgetLimit\": 37500.00, \"spentAmount\": 8000.00, \"isOverBudget\": false}],\n  \"categoriesOnTrack\": 3,\n  \"categoriesOverBudget\": 0\n}"}]
+        },
+        {
+          "name": "Get Current Month Budget",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/budgets/current"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"id\": \"f1e2d3c4-b5a6-7890-1234-567890abcdef\",\n  \"budgetMonth\": \"2026-02\",\n  \"totalIncome\": 75000.00,\n  \"totalSpent\": 25000.00,\n  \"remainingBudget\": 50000.00,\n  \"spentPercent\": 33.33\n}"}]
+        },
+        {
+          "name": "Get Budget by Month",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/budgets/month/2026-02"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"id\": \"f1e2d3c4-b5a6-7890-1234-567890abcdef\",\n  \"budgetMonth\": \"2026-02\",\n  \"totalIncome\": 75000.00,\n  \"totalSpent\": 25000.00\n}"}]
+        },
+        {
+          "name": "Get All Budgets",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/budgets"},
+          "response": [{"name": "Success", "code": 200, "body": "[{\"id\": \"f1e2d3c4-b5a6-7890-1234-567890abcdef\", \"budgetMonth\": \"2026-02\"}, {\"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567891\", \"budgetMonth\": \"2026-01\"}]"}]
+        },
+        {
+          "name": "Update Budget",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/budgets/f1e2d3c4-b5a6-7890-1234-567890abcdef",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"totalIncome\": 80000.00,\n  \"notes\": \"Updated income\"\n}"}
+          },
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"id\": \"f1e2d3c4-b5a6-7890-1234-567890abcdef\",\n  \"totalIncome\": 80000.00,\n  \"notes\": \"Updated income\"\n}"}]
+        },
+        {
+          "name": "Delete Budget",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/api/budgets/f1e2d3c4-b5a6-7890-1234-567890abcdef"},
+          "response": [{"name": "Success", "code": 204, "body": ""}]
+        }
+      ]
+    },
+    {
+      "name": "2. Bill Reminders",
+      "item": [
+        {
+          "name": "Create Bill Reminder",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/bills",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Netflix Subscription\",\n  \"category\": \"SUBSCRIPTION\",\n  \"amount\": 649.00,\n  \"frequency\": \"MONTHLY\",\n  \"nextDueDate\": \"2026-03-01\",\n  \"reminderDaysBefore\": 3,\n  \"isAutoPay\": true,\n  \"payee\": \"Netflix India\",\n  \"icon\": \"movie\",\n  \"color\": \"#E50914\"\n}"}
+          },
+          "response": [{"name": "Success", "code": 201, "body": "{\n  \"id\": \"bill-1234-5678-90ab-cdef12345678\",\n  \"name\": \"Netflix Subscription\",\n  \"category\": \"SUBSCRIPTION\",\n  \"amount\": 649.00,\n  \"frequency\": \"MONTHLY\",\n  \"nextDueDate\": \"2026-03-01\",\n  \"reminderDaysBefore\": 3,\n  \"isActive\": true,\n  \"isAutoPay\": true,\n  \"payee\": \"Netflix India\",\n  \"daysUntilDue\": 15,\n  \"isOverdue\": false,\n  \"status\": \"UPCOMING\",\n  \"icon\": \"movie\",\n  \"color\": \"#E50914\",\n  \"createdAt\": \"2026-02-14T10:00:00Z\"\n}"}]
+        },
+        {
+          "name": "Get All Bill Reminders",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/bills"},
+          "response": [{"name": "Success", "code": 200, "body": "[\n  {\n    \"id\": \"bill-1234-5678-90ab-cdef12345678\",\n    \"name\": \"Netflix Subscription\",\n    \"amount\": 649.00,\n    \"frequency\": \"MONTHLY\",\n    \"nextDueDate\": \"2026-03-01\",\n    \"daysUntilDue\": 15,\n    \"status\": \"UPCOMING\"\n  },\n  {\n    \"id\": \"bill-2345-6789-01bc-def234567890\",\n    \"name\": \"Electricity Bill\",\n    \"amount\": 2500.00,\n    \"frequency\": \"MONTHLY\",\n    \"nextDueDate\": \"2026-02-20\",\n    \"daysUntilDue\": 6,\n    \"status\": \"DUE_SOON\"\n  },\n  {\n    \"id\": \"bill-3456-7890-12cd-ef3456789012\",\n    \"name\": \"Rent\",\n    \"amount\": 25000.00,\n    \"frequency\": \"MONTHLY\",\n    \"nextDueDate\": \"2026-02-10\",\n    \"daysUntilDue\": -4,\n    \"status\": \"OVERDUE\"\n  }\n]"}]
+        },
+        {
+          "name": "Get Bills Summary",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/bills/summary"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"totalBills\": 5,\n  \"activeBills\": 4,\n  \"overdueCount\": 1,\n  \"dueSoonCount\": 2,\n  \"totalMonthlyAmount\": 32149.00,\n  \"totalOverdueAmount\": 25000.00,\n  \"totalDueSoonAmount\": 3149.00,\n  \"overdueBills\": [{\"name\": \"Rent\", \"amount\": 25000.00, \"nextDueDate\": \"2026-02-10\"}],\n  \"dueSoonBills\": [{\"name\": \"Electricity Bill\", \"amount\": 2500.00}, {\"name\": \"Netflix\", \"amount\": 649.00}],\n  \"upcomingBills\": [{\"name\": \"Internet\", \"amount\": 1000.00}],\n  \"maxBillsAllowed\": 5,\n  \"remainingSlots\": 1\n}"}]
+        },
+        {
+          "name": "Get Active Reminders",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/bills/active"},
+          "response": [{"name": "Success", "code": 200, "body": "[{\"id\": \"bill-1234\", \"name\": \"Netflix\", \"isActive\": true}]"}]
+        },
+        {
+          "name": "Get Bill by ID",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/bills/bill-1234-5678-90ab-cdef12345678"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"id\": \"bill-1234-5678-90ab-cdef12345678\",\n  \"name\": \"Netflix Subscription\",\n  \"amount\": 649.00\n}"}]
+        },
+        {
+          "name": "Update Bill Reminder",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/bills/bill-1234-5678-90ab-cdef12345678",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"amount\": 799.00,\n  \"notes\": \"Price increased\"\n}"}
+          },
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"id\": \"bill-1234-5678-90ab-cdef12345678\",\n  \"name\": \"Netflix Subscription\",\n  \"amount\": 799.00,\n  \"notes\": \"Price increased\"\n}"}]
+        },
+        {
+          "name": "Mark Bill as Paid",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/bills/bill-1234-5678-90ab-cdef12345678/mark-paid",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"paidDate\": \"2026-02-14\",\n  \"paidAmount\": 649.00\n}"}
+          },
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"id\": \"bill-1234-5678-90ab-cdef12345678\",\n  \"name\": \"Netflix Subscription\",\n  \"lastPaidDate\": \"2026-02-14\",\n  \"lastPaidAmount\": 649.00,\n  \"nextDueDate\": \"2026-03-14\",\n  \"status\": \"UPCOMING\"\n}"}]
+        },
+        {
+          "name": "Delete Bill Reminder",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/api/bills/bill-1234-5678-90ab-cdef12345678"},
+          "response": [{"name": "Success", "code": 204, "body": ""}]
+        }
+      ]
+    },
+    {
+      "name": "3. Monthly Reports",
+      "item": [
+        {
+          "name": "Get Monthly Report",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/reports/monthly/2026-02"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"month\": \"2026-02\",\n  \"monthName\": \"February 2026\",\n  \"summary\": {\n    \"totalIncome\": 75000.00,\n    \"totalExpenses\": 42500.00,\n    \"netSavings\": 32500.00,\n    \"savingsRate\": 43.33,\n    \"transactionCount\": 45,\n    \"avgDailyExpense\": 3035.71\n  },\n  \"categoryBreakdown\": [\n    {\"category\": \"FOOD\", \"amount\": 12000.00, \"percentage\": 28.24, \"transactionCount\": 18, \"icon\": \"restaurant\", \"color\": \"#E91E63\"},\n    {\"category\": \"TRANSPORT\", \"amount\": 5500.00, \"percentage\": 12.94, \"transactionCount\": 8, \"icon\": \"directions_car\", \"color\": \"#00BCD4\"},\n    {\"category\": \"UTILITIES\", \"amount\": 4500.00, \"percentage\": 10.59, \"transactionCount\": 4, \"icon\": \"bolt\", \"color\": \"#FFC107\"},\n    {\"category\": \"SHOPPING\", \"amount\": 8000.00, \"percentage\": 18.82, \"transactionCount\": 6, \"icon\": \"shopping_bag\", \"color\": \"#9C27B0\"},\n    {\"category\": \"ENTERTAINMENT\", \"amount\": 3500.00, \"percentage\": 8.24, \"transactionCount\": 5, \"icon\": \"movie\", \"color\": \"#3F51B5\"},\n    {\"category\": \"HEALTHCARE\", \"amount\": 2000.00, \"percentage\": 4.71, \"transactionCount\": 2, \"icon\": \"local_hospital\", \"color\": \"#F44336\"},\n    {\"category\": \"OTHER\", \"amount\": 7000.00, \"percentage\": 16.47, \"transactionCount\": 2, \"icon\": \"more_horiz\", \"color\": \"#607D8B\"}\n  ],\n  \"topExpenses\": [\n    {\"description\": \"Rent Payment\", \"amount\": 25000.00, \"category\": \"HOUSING\", \"date\": \"2026-02-01\"},\n    {\"description\": \"Grocery Shopping\", \"amount\": 4500.00, \"category\": \"FOOD\", \"date\": \"2026-02-08\"},\n    {\"description\": \"Online Shopping\", \"amount\": 3200.00, \"category\": \"SHOPPING\", \"date\": \"2026-02-12\"}\n  ],\n  \"insights\": [\n    \"Your savings rate of 43.33% is excellent! Keep it up.\",\n    \"Food expenses are 28% of total spending - consider meal planning to reduce.\",\n    \"You spent ₹8,000 on shopping this month - 15% more than last month.\"\n  ],\n  \"comparison\": {\n    \"previousMonth\": \"2026-01\",\n    \"incomeChange\": 5.0,\n    \"expenseChange\": -8.5,\n    \"savingsChange\": 12.3\n  }\n}"}]
+        },
+        {
+          "name": "Get Current Month Report",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/reports/monthly/current"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"month\": \"2026-02\",\n  \"monthName\": \"February 2026\",\n  \"summary\": {\n    \"totalIncome\": 75000.00,\n    \"totalExpenses\": 25000.00,\n    \"netSavings\": 50000.00,\n    \"savingsRate\": 66.67,\n    \"transactionCount\": 28,\n    \"avgDailyExpense\": 1785.71\n  },\n  \"categoryBreakdown\": [\n    {\"category\": \"FOOD\", \"amount\": 8000.00, \"percentage\": 32.0},\n    {\"category\": \"TRANSPORT\", \"amount\": 3500.00, \"percentage\": 14.0},\n    {\"category\": \"UTILITIES\", \"amount\": 4500.00, \"percentage\": 18.0}\n  ],\n  \"insights\": [\"Month is in progress - data updated as of Feb 14\"]\n}"}]
+        }
+      ]
+    },
+    {
+      "name": "4. Export Data",
+      "item": [
+        {
+          "name": "Export Transactions (with filters)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/export/transactions",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"startDate\": \"2026-01-01\",\n  \"endDate\": \"2026-02-28\",\n  \"categories\": [\"FOOD\", \"TRANSPORT\", \"SHOPPING\"],\n  \"transactionType\": \"EXPENSE\"\n}"}
+          },
+          "response": [{"name": "Success - CSV", "code": 200, "headers": [{"key": "Content-Type", "value": "text/csv"}, {"key": "Content-Disposition", "value": "attachment; filename=transactions_2026-01-01_to_2026-02-28.csv"}], "body": "Date,Description,Category,Type,Amount (₹),Payment Method,Notes\n2026-02-14,Swiggy Order,FOOD,EXPENSE,450.00,UPI,Dinner\n2026-02-13,Uber Ride,TRANSPORT,EXPENSE,250.00,UPI,Office commute\n2026-02-12,Amazon Shopping,SHOPPING,EXPENSE,3200.00,CREDIT_CARD,Electronics\n2026-02-10,Grocery Store,FOOD,EXPENSE,1500.00,DEBIT_CARD,Weekly groceries\n2026-02-08,Zomato,FOOD,EXPENSE,380.00,UPI,Lunch\n2026-02-05,Petrol,TRANSPORT,EXPENSE,2000.00,CASH,Fuel"}]
+        },
+        {
+          "name": "Export All Transactions",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/export/transactions"},
+          "response": [{"name": "Success - CSV", "code": 200, "headers": [{"key": "Content-Type", "value": "text/csv"}], "body": "Date,Description,Category,Type,Amount (₹),Payment Method,Notes\n2026-02-14,Salary Credit,INCOME,INCOME,75000.00,BANK_TRANSFER,February Salary\n2026-02-14,Swiggy Order,FOOD,EXPENSE,450.00,UPI,Dinner\n2026-02-13,Uber Ride,TRANSPORT,EXPENSE,250.00,UPI,Office commute\n..."}]
+        },
+        {
+          "name": "Export Goals",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/export/goals"},
+          "response": [{"name": "Success - CSV", "code": 200, "headers": [{"key": "Content-Type", "value": "text/csv"}], "body": "Goal Name,Target Amount (₹),Current Amount (₹),Progress (%),Deadline,Status,Created At\nEmergency Fund,300000.00,125000.00,41.7,2026-12-31,IN_PROGRESS,2025-06-15T10:00:00Z\nVacation to Goa,50000.00,35000.00,70.0,2026-04-15,IN_PROGRESS,2025-10-01T10:00:00Z\nNew Laptop,80000.00,80000.00,100.0,2026-03-01,COMPLETED,2025-08-20T10:00:00Z"}]
+        },
+        {
+          "name": "Export Bills",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/export/bills"},
+          "response": [{"name": "Success - CSV", "code": 200, "headers": [{"key": "Content-Type", "value": "text/csv"}], "body": "Bill Name,Category,Amount (₹),Frequency,Next Due Date,Auto Pay,Payee,Status\nNetflix Subscription,SUBSCRIPTION,649.00,MONTHLY,2026-03-01,Yes,Netflix India,UPCOMING\nElectricity Bill,UTILITIES,2500.00,MONTHLY,2026-02-20,No,MSEB,DUE_SOON\nRent,HOUSING,25000.00,MONTHLY,2026-03-01,No,Landlord,UPCOMING\nInternet,UTILITIES,999.00,MONTHLY,2026-02-25,Yes,Airtel,DUE_SOON\nGym Membership,HEALTH,1500.00,MONTHLY,2026-03-05,Yes,Gold's Gym,UPCOMING"}]
+        }
+      ]
+    },
+    {
+      "name": "5. Notifications",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/notifications"},
+          "response": [{"name": "Success", "code": 200, "body": "[\n  {\n    \"id\": \"notif-1234-5678-90ab-cdef12345678\",\n    \"type\": \"BILL_DUE\",\n    \"title\": \"Bill Due Soon\",\n    \"message\": \"Electricity Bill of ₹2,500 is due in 3 days\",\n    \"priority\": \"HIGH\",\n    \"referenceType\": \"BILL\",\n    \"referenceId\": \"bill-2345-6789-01bc-def234567890\",\n    \"icon\": \"bolt\",\n    \"actionUrl\": \"/bills/bill-2345-6789-01bc-def234567890\",\n    \"isRead\": false,\n    \"createdAt\": \"2026-02-17T08:00:00Z\"\n  },\n  {\n    \"id\": \"notif-2345-6789-01bc-def234567890\",\n    \"type\": \"GOAL_MILESTONE\",\n    \"title\": \"Goal Progress!\",\n    \"message\": \"You've reached 70% of your Vacation to Goa goal! 🎉\",\n    \"priority\": \"MEDIUM\",\n    \"referenceType\": \"GOAL\",\n    \"referenceId\": \"goal-1234-5678\",\n    \"icon\": \"flight\",\n    \"isRead\": true,\n    \"readAt\": \"2026-02-14T10:30:00Z\",\n    \"createdAt\": \"2026-02-14T09:00:00Z\"\n  },\n  {\n    \"id\": \"notif-3456-7890-12cd-ef3456789012\",\n    \"type\": \"BUDGET_EXCEEDED\",\n    \"title\": \"Budget Alert\",\n    \"message\": \"You've exceeded your FOOD budget by ₹2,000\",\n    \"priority\": \"HIGH\",\n    \"referenceType\": \"BUDGET\",\n    \"icon\": \"warning\",\n    \"isRead\": false,\n    \"createdAt\": \"2026-02-13T18:00:00Z\"\n  }\n]"}]
+        },
+        {
+          "name": "Get Unread Notifications",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/notifications/unread"},
+          "response": [{"name": "Success", "code": 200, "body": "[\n  {\n    \"id\": \"notif-1234-5678-90ab-cdef12345678\",\n    \"type\": \"BILL_DUE\",\n    \"title\": \"Bill Due Soon\",\n    \"message\": \"Electricity Bill of ₹2,500 is due in 3 days\",\n    \"isRead\": false\n  },\n  {\n    \"id\": \"notif-3456-7890-12cd-ef3456789012\",\n    \"type\": \"BUDGET_EXCEEDED\",\n    \"title\": \"Budget Alert\",\n    \"message\": \"You've exceeded your FOOD budget by ₹2,000\",\n    \"isRead\": false\n  }\n]"}]
+        },
+        {
+          "name": "Get Notification Summary",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/notifications/summary"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"totalCount\": 15,\n  \"unreadCount\": 4,\n  \"highPriorityUnread\": 2,\n  \"byType\": {\n    \"BILL_DUE\": 3,\n    \"GOAL_MILESTONE\": 5,\n    \"BUDGET_EXCEEDED\": 2,\n    \"TRANSACTION_ALERT\": 3,\n    \"SYSTEM\": 2\n  }\n}"}]
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {"method": "POST", "url": "{{baseUrl}}/api/notifications/notif-1234-5678-90ab-cdef12345678/read"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"id\": \"notif-1234-5678-90ab-cdef12345678\",\n  \"type\": \"BILL_DUE\",\n  \"title\": \"Bill Due Soon\",\n  \"isRead\": true,\n  \"readAt\": \"2026-02-14T11:30:00Z\"\n}"}]
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {"method": "POST", "url": "{{baseUrl}}/api/notifications/read-all"},
+          "response": [{"name": "Success", "code": 200, "body": "{\n  \"markedAsRead\": 4\n}"}]
+        },
+        {
+          "name": "Delete Notification",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/api/notifications/notif-1234-5678-90ab-cdef12345678"},
+          "response": [{"name": "Success", "code": 204, "body": ""}]
+        }
+      ]
+    }
+  ]
+}
+

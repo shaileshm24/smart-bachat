@@ -46,6 +46,9 @@ class TransactionClient:
                 params=params,
                 timeout=30.0
             )
+            if response.status_code >= 400:
+                import logging
+                logging.error(f"Transaction API error: status={response.status_code}, body={response.text}")
             response.raise_for_status()
 
             data = response.json()

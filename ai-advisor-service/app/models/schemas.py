@@ -118,3 +118,53 @@ class TransactionData(BaseModel):
     description: Optional[str] = None
     merchant: Optional[str] = None
 
+
+# Goal-related models
+class GoalData(BaseModel):
+    """Goal data from bachat-core-service."""
+    id: UUID
+    name: str
+    goal_type: str  # TRAVEL, GADGET, EMERGENCY, HOME, VEHICLE, EDUCATION, WEDDING, CUSTOM
+    target_amount: float  # in rupees
+    current_amount: float  # in rupees
+    remaining_amount: float  # in rupees
+    progress_percent: float
+    deadline: Optional[date] = None
+    priority: Optional[str] = None  # HIGH, MEDIUM, LOW
+    status: str  # ACTIVE, COMPLETED, PAUSED, CANCELLED
+    is_on_track: Optional[bool] = None
+    suggested_monthly_saving: Optional[float] = None
+    days_remaining: Optional[int] = None
+
+
+class GoalInsight(BaseModel):
+    """Insight for a specific goal."""
+    goal_id: UUID
+    goal_name: str
+    insight_type: str  # PROGRESS, WARNING, MOTIVATION, SUGGESTION
+    title: str
+    message: str
+    priority: str = "MEDIUM"  # HIGH, MEDIUM, LOW
+    action_items: List[str] = []
+
+
+class GoalSuggestion(BaseModel):
+    """AI-suggested goal based on spending patterns."""
+    goal_type: str
+    suggested_name: str
+    suggested_target: float
+    suggested_deadline: Optional[date] = None
+    reason: str
+    priority: str = "MEDIUM"
+    confidence_score: float = 0.7
+
+
+class GoalInsightsResponse(BaseModel):
+    """Response for goal insights endpoint."""
+    profile_id: UUID
+    generated_at: date
+    goals_summary: dict  # Summary stats about goals
+    goal_insights: List[GoalInsight]  # Insights for each goal
+    suggested_goals: List[GoalSuggestion]  # New goal suggestions
+    motivational_message: str
+    overall_health_score: float  # 0-100 score for goal progress

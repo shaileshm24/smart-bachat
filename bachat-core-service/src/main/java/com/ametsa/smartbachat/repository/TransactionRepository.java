@@ -109,12 +109,12 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
      * Count transactions by user ID with optional filters.
      */
     @Query(value = "SELECT COUNT(*) FROM transactions t WHERE t.user_id = :userId " +
-           "AND (:startDate IS NULL OR t.txn_date >= :startDate) " +
-           "AND (:endDate IS NULL OR t.txn_date <= :endDate) " +
-           "AND (:category IS NULL OR t.category = :category) " +
-           "AND (:direction IS NULL OR t.direction = :direction) " +
-           "AND (:search IS NULL OR LOWER(CAST(t.description AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(CAST(t.merchant AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%')))",
+           "AND (CAST(:startDate AS DATE) IS NULL OR t.txn_date >= CAST(:startDate AS DATE)) " +
+           "AND (CAST(:endDate AS DATE) IS NULL OR t.txn_date <= CAST(:endDate AS DATE)) " +
+           "AND (CAST(:category AS TEXT) IS NULL OR t.category = CAST(:category AS TEXT)) " +
+           "AND (CAST(:direction AS TEXT) IS NULL OR t.direction = CAST(:direction AS TEXT)) " +
+           "AND (CAST(:search AS TEXT) IS NULL OR (LOWER(CAST(t.description AS TEXT)) LIKE LOWER(CONCAT('%', CAST(:search AS TEXT), '%')) " +
+           "     OR LOWER(CAST(t.merchant AS TEXT)) LIKE LOWER(CONCAT('%', CAST(:search AS TEXT), '%'))))",
            nativeQuery = true)
     long countByUserIdWithFilters(
             @Param("userId") UUID userId,
@@ -128,13 +128,14 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
      * Find transactions by user ID with optional filters and pagination.
      */
     @Query(value = "SELECT * FROM transactions t WHERE t.user_id = :userId " +
-           "AND (:startDate IS NULL OR t.txn_date >= :startDate) " +
-           "AND (:endDate IS NULL OR t.txn_date <= :endDate) " +
-           "AND (:category IS NULL OR t.category = :category) " +
-           "AND (:direction IS NULL OR t.direction = :direction) " +
-           "AND (:search IS NULL OR LOWER(CAST(t.description AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(CAST(t.merchant AS TEXT)) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "ORDER BY t.txn_date DESC, t.created_at DESC",
+           "AND (CAST(:startDate AS DATE) IS NULL OR t.txn_date >= CAST(:startDate AS DATE)) " +
+           "AND (CAST(:endDate AS DATE) IS NULL OR t.txn_date <= CAST(:endDate AS DATE)) " +
+           "AND (CAST(:category AS TEXT) IS NULL OR t.category = CAST(:category AS TEXT)) " +
+           "AND (CAST(:direction AS TEXT) IS NULL OR t.direction = CAST(:direction AS TEXT)) " +
+           "AND (CAST(:search AS TEXT) IS NULL OR (LOWER(CAST(t.description AS TEXT)) LIKE LOWER(CONCAT('%', CAST(:search AS TEXT), '%')) " +
+           "     OR LOWER(CAST(t.merchant AS TEXT)) LIKE LOWER(CONCAT('%', CAST(:search AS TEXT), '%')))) " +
+           "ORDER BY t.txn_date DESC, t.created_at DESC " +
+           "LIMIT :limitVal OFFSET :offsetVal",
            nativeQuery = true)
     List<TransactionEntity> findByUserIdWithFilters(
             @Param("userId") UUID userId,
@@ -143,6 +144,7 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
             @Param("category") String category,
             @Param("direction") String direction,
             @Param("search") String search,
-            org.springframework.data.domain.Pageable pageable);
+            @Param("limitVal") int limitVal,
+            @Param("offsetVal") int offsetVal);
 }
 
