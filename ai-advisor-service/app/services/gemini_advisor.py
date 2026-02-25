@@ -382,7 +382,7 @@ Be encouraging. Mention SIP or RD if helpful. Keep under 50 words total."""
     ) -> dict:
         """Generate AI-powered goal insights and motivational messages."""
         if not self.is_available():
-            return self._generate_fallback_goal_insights(goals, capacity)
+            return self._generate_fallback_goal_insights(goals, analysis, capacity)
 
         goals_summary = self._prepare_goals_summary(goals)
         spending_summary = self._prepare_spending_summary(analysis, [])
@@ -391,26 +391,58 @@ Be encouraging. Mention SIP or RD if helpful. Keep under 50 words total."""
         active_goals = [g for g in goals if g.status == "ACTIVE"][:3]
         goals_count = len(active_goals)
 
-        prompt = f"""Indian financial advisor. Analyze goals and give JSON response.
+        # Calculate available savings for new goals
+        total_goal_monthly = sum(
+            (g.target_amount - g.current_amount) / max(1, self._months_to_deadline(g))
+            for g in active_goals if g.target_amount > g.current_amount
+        )
+        available_for_new_goals = max(0, capacity.safe_monthly_savings - total_goal_monthly)
 
-GOALS ({goals_count}):
+        prompt = f"""Indian financial advisor. Analyze goals and spending to give JSON response.
+
+CURRENT GOALS ({goals_count}):
 {goals_summary}
 
-FINANCES: Income ₹{analysis.avg_monthly_income:,.0f}/mo, Expenses ₹{analysis.avg_monthly_expense:,.0f}/mo, Savings {analysis.savings_rate:.1f}%
+FINANCES:
+- Monthly Income: ₹{analysis.avg_monthly_income:,.0f}
+- Monthly Expenses: ₹{analysis.avg_monthly_expense:,.0f}
+- Savings Rate: {analysis.savings_rate:.1f}%
+- Safe Monthly Savings: ₹{capacity.safe_monthly_savings:,.0f}
+- Available for New Goals: ₹{available_for_new_goals:,.0f}/month
 
-Return ONLY this JSON (keep insights SHORT - max 50 words each):
+TOP SPENDING CATEGORIES:
+{spending_summary}
+
+Return ONLY this JSON:
 {{
-    "overall_health_score": <0-100 based on savings rate and goal progress>,
+    "overall_health_score": <0-100>,
     "goal_specific_insights": [
-        {{"goal_name": "goal1", "insight": "Short advice", "action_items": ["action1"]}}
+        {{"goal_name": "goal1", "insight": "Short advice (max 40 words)", "action_items": ["action1"]}}
     ],
     "motivational_message": "One encouraging sentence",
     "saving_tips": ["tip1", "tip2"],
-    "suggested_new_goals": []
+    "suggested_new_goals": [
+        {{
+            "goal_type": "EMERGENCY/TRAVEL/GADGET/VEHICLE/HOME/EDUCATION/INVESTMENT/RETIREMENT",
+            "name": "Specific goal name",
+            "target_amount": <number in rupees>,
+            "suggested_duration_months": <number>,
+            "monthly_saving_required": <number>,
+            "reason": "Why this goal based on their spending pattern (max 30 words)",
+            "priority": "HIGH/MEDIUM/LOW"
+        }}
+    ]
 }}
 
-Score guide: 80+=Excellent, 60-79=Good, 40-59=Needs work, <40=Critical
-Keep ALL text fields SHORT. Max 50 words per insight."""
+IMPORTANT for suggested_new_goals:
+- Suggest 2-3 NEW goals based on their spending patterns
+- If they spend on food/dining, suggest a vacation goal
+- If no emergency fund goal exists, suggest one (3-6 months expenses)
+- Base target_amount on their income level (realistic amounts)
+- monthly_saving_required should be <= ₹{available_for_new_goals:,.0f}
+- suggested_duration_months should be 6-24 months typically
+
+Score: 80+=Excellent, 60-79=Good, 40-59=Needs work, <40=Critical"""
 
         max_retries = 2
         last_error = None
@@ -462,7 +494,7 @@ Keep ALL text fields SHORT. Max 50 words per insight."""
         return "\n".join(lines) if lines else "No active goals."
 
     def _generate_fallback_goal_insights(
-        self, goals: List[GoalData], capacity: SavingsCapacityResponse
+        self, goals: List[GoalData], analysis: SpendingAnalysisResponse, capacity: SavingsCapacityResponse
     ) -> dict:
         """Generate rule-based goal insights when Gemini is unavailable."""
         logger.warning("Using fallback goal insights (Gemini unavailable or failed)")
@@ -507,8 +539,95 @@ Keep ALL text fields SHORT. Max 50 words per insight."""
                 "Use the 50-30-20 rule: 50% needs, 30% wants, 20% savings",
                 "Track every expense for a week to find hidden savings"
             ],
-            "suggested_new_goals": []
+            "suggested_new_goals": self._generate_fallback_suggested_goals(goals, analysis, capacity)
         }
+
+    def _months_to_deadline(self, goal: GoalData) -> int:
+        """Calculate months remaining to goal deadline."""
+        if goal.deadline:
+            from datetime import date
+            today = date.today()
+            months = (goal.deadline.year - today.year) * 12 + (goal.deadline.month - today.month)
+            return max(1, months)
+        return 12  # Default to 12 months if no deadline
+
+    def _generate_fallback_suggested_goals(
+        self,
+        existing_goals: List[GoalData],
+        analysis: SpendingAnalysisResponse,
+        capacity: SavingsCapacityResponse
+    ) -> list:
+        """Generate suggested new goals based on spending patterns."""
+        suggestions = []
+        existing_types = {g.goal_type.upper() for g in existing_goals if g.status == "ACTIVE"}
+
+        monthly_income = analysis.avg_monthly_income
+        monthly_expenses = analysis.avg_monthly_expense
+        safe_savings = capacity.safe_monthly_savings
+
+        # 1. Emergency Fund (if not exists)
+        if "EMERGENCY" not in existing_types:
+            emergency_target = monthly_expenses * 6  # 6 months expenses
+            suggestions.append({
+                "goal_type": "EMERGENCY",
+                "name": "Emergency Fund",
+                "target_amount": round(emergency_target, -3),  # Round to nearest 1000
+                "suggested_duration_months": 12,
+                "monthly_saving_required": round(emergency_target / 12, -2),
+                "reason": "Build a safety net of 6 months expenses for unexpected situations",
+                "priority": "HIGH"
+            })
+
+        # 2. Based on spending patterns - suggest relevant goals
+        top_categories = [cat.category.upper() for cat in analysis.category_breakdown[:5]]
+
+        # If spending on travel/entertainment, suggest vacation goal
+        if any(cat in ["TRAVEL", "ENTERTAINMENT", "DINING", "FOOD"] for cat in top_categories):
+            if "TRAVEL" not in existing_types:
+                vacation_target = monthly_income * 2  # 2 months income for vacation
+                suggestions.append({
+                    "goal_type": "TRAVEL",
+                    "name": "Dream Vacation Fund",
+                    "target_amount": round(vacation_target, -3),
+                    "suggested_duration_months": 10,
+                    "monthly_saving_required": round(vacation_target / 10, -2),
+                    "reason": "Based on your lifestyle spending, a vacation fund would help you travel stress-free",
+                    "priority": "MEDIUM"
+                })
+
+        # 3. If good savings rate, suggest investment goal
+        if analysis.savings_rate >= 15 and "INVESTMENT" not in existing_types:
+            investment_target = monthly_income * 6
+            suggestions.append({
+                "goal_type": "INVESTMENT",
+                "name": "Investment Portfolio",
+                "target_amount": round(investment_target, -3),
+                "suggested_duration_months": 12,
+                "monthly_saving_required": round(investment_target / 12, -2),
+                "reason": "Your strong savings rate makes you ready to start building wealth through investments",
+                "priority": "MEDIUM"
+            })
+
+        # 4. Gadget/Upgrade goal based on income
+        if "GADGET" not in existing_types and len(suggestions) < 3:
+            gadget_target = monthly_income * 1.5
+            suggestions.append({
+                "goal_type": "GADGET",
+                "name": "Tech Upgrade Fund",
+                "target_amount": round(gadget_target, -3),
+                "suggested_duration_months": 8,
+                "monthly_saving_required": round(gadget_target / 8, -2),
+                "reason": "Save for your next gadget purchase without impacting monthly budget",
+                "priority": "LOW"
+            })
+
+        # Limit to 3 suggestions and filter by affordability
+        affordable_suggestions = [
+            s for s in suggestions
+            if s["monthly_saving_required"] <= safe_savings * 0.5  # Max 50% of safe savings
+        ]
+
+        return affordable_suggestions[:3]
 
     def _calculate_fallback_health_score(
         self, active_goals: List[GoalData], capacity: SavingsCapacityResponse
